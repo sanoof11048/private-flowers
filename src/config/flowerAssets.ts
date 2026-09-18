@@ -21,10 +21,10 @@ export const FLOWER_ASSETS = {
     white: "/flowers/heads/daisy-white.png",
   },
   fillers: {
-    babyBreath: "/flowers/heads/baby-breath.png",
-    lavender: "/flowers/heads/lavender.png",
-    cherryBlossom: "/flowers/heads/cherry-blossom.png",
-    eucalyptus: "/flowers/heads/eucalyptus.png",
+    lavender: "/flowers/heads/tulip-pink.png",
+    babyBreath: "/flowers/heads/daisy-white.png",
+    eucalyptus: "/flowers/heads/peony-white.png",
+    cherryBlossom: "/flowers/heads/rose-pink.png",
   },
 } as const;
 
@@ -32,5 +32,4 @@ export type FlowerAssetType =
   | keyof typeof FLOWER_ASSETS.roses
   | keyof typeof FLOWER_ASSETS.tulips
   | keyof typeof FLOWER_ASSETS.peonies
-  | keyof typeof FLOWER_ASSETS.daisies
-  | keyof typeof FLOWER_ASSETS.fillers;
+  | keyof typeof FLOWER_ASSETS.daisies;

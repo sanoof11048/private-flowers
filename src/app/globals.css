@@ -29,71 +29,128 @@ body {
   font-family: var(--font-serif);
 }
 
-/* Organic flower swaying physics */
-@keyframes sway-subtle-1 {
+/* Organic independent plant swaying physics */
+@keyframes sway-subtle-left {
   0%, 100% {
     transform: rotate(0deg);
   }
   50% {
-    transform: rotate(1.4deg);
+    transform: rotate(-0.95deg);
   }
 }
 
-@keyframes sway-subtle-2 {
+@keyframes sway-subtle-right {
   0%, 100% {
     transform: rotate(0deg);
   }
   50% {
-    transform: rotate(-1.8deg);
+    transform: rotate(1.05deg);
   }
 }
 
-@keyframes sway-subtle-3 {
+@keyframes sway-subtle-center {
   0%, 100% {
     transform: rotate(0deg);
   }
   50% {
-    transform: rotate(2.2deg);
+    transform: rotate(0.45deg);
   }
 }
 
-.animate-sway-1 {
-  transform-origin: bottom center;
-  animation: sway-subtle-1 7s ease-in-out infinite;
-}
-
-.animate-sway-2 {
-  transform-origin: bottom center;
-  animation: sway-subtle-2 8.5s ease-in-out infinite;
-}
-
-.animate-sway-3 {
-  transform-origin: bottom center;
-  animation: sway-subtle-3 6.5s ease-in-out infinite;
-}
-
-/* Stem draw keyframe */
-@keyframes drawStem {
-  from {
-    stroke-dashoffset: 1000;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Subtle glow pulses */
-@keyframes softGlow {
+@keyframes sway-delicate {
   0%, 100% {
-    opacity: 0.35;
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-1.3deg);
+  }
+}
+
+.animate-sway-left {
+  transform-origin: 260px 520px;
+  animation: sway-subtle-left 8.2s ease-in-out infinite;
+}
+
+.animate-sway-right {
+  transform-origin: 260px 520px;
+  animation: sway-subtle-right 7.8s ease-in-out infinite;
+}
+
+.animate-sway-center {
+  transform-origin: 260px 520px;
+  animation: sway-subtle-center 9.4s ease-in-out infinite;
+}
+
+.animate-sway-delicate {
+  transform-origin: 260px 520px;
+  animation: sway-delicate 6.2s ease-in-out infinite;
+}
+
+/* Gentle romantic heart pulse */
+@keyframes gentleHeartPulse {
+  0%, 100% {
     transform: scale(1);
   }
   50% {
-    opacity: 0.65;
-    transform: scale(1.06);
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 10px rgba(251, 113, 133, 0.7));
   }
 }
 
-.animate-soft-glow {
-  animation: softGlow 6s ease-in-out infinite;
+.animate-heart-pulse {
+  display: inline-block;
+  animation: gentleHeartPulse 2.8s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* Soft ambient candle/moonlight glow behind the bouquet */
+@keyframes softCandleGlow {
+  0%, 100% {
+    opacity: 0.45;
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: translate(-50%, 0) scale(1.06);
+  }
+}
+
+.animate-candle-glow {
+  animation: softCandleGlow 8s ease-in-out infinite;
+}
+
+/* Floating petal drift keyframe */
+@keyframes petalDrift {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(var(--drift-x, 40px), 105vh, 0) rotate(var(--rot-deg, 180deg));
+    opacity: 0;
+  }
+}
+
+.animate-petal-drift {
+  animation: petalDrift var(--drift-dur, 12s) cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+  animation-delay: var(--drift-delay, 0s);
+}
+
+/* Accessible Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-sway-left,
+  .animate-sway-right,
+  .animate-sway-center,
+  .animate-sway-delicate,
+  .animate-heart-pulse,
+  .animate-candle-glow,
+  .animate-petal-drift {
+    animation: none !important;
+  }
 }

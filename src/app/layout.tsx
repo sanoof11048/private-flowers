@@ -27,6 +27,14 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "For Lena Fathima K",
   description: "A digital bouquet blooming just for Lena Fathima K.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" }
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
