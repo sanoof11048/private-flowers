@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FLOWER_ASSETS } from "@/config/flowerAssets";
 
 interface StarParticle {
   x: number;
@@ -14,7 +15,7 @@ interface StarParticle {
 }
 
 interface PlantLeaf {
-  t: number; // 0 to 1 along stem
+  t: number; // position along stem curve (0 = base, 1 = tip)
   side: "left" | "right";
   length: number;
   angle: number;
@@ -28,7 +29,7 @@ interface PlantData {
   layer: "back" | "mid" | "front";
   flowerSize: number;
   flowerOffsetY?: number;
-  // Cubic Bezier Stem Geometry (viewBox: 0 0 400 580)
+  // Cubic Bezier Stem Coordinates in viewBox (0 0 400 580)
   startX: number;
   startY: number;
   cp1X: number;
@@ -46,19 +47,19 @@ interface PlantData {
   bloomDuration: number;
   // Foliage
   leaves?: PlantLeaf[];
-  // Independent natural sway class
+  // Independent breeze sway class
   swayClass: string;
 }
 
-// 36 Meticulously Orchestrated Botanical Plants forming a massive, wide, lush, hand-tied florist bouquet
+// 32 Hand-arranged Botanical Plants using ONLY genuine transparent flower heads
 const PLANTS_DATA: PlantData[] = [
   // =========================================================================
   // 1. FAR-LEFT & FAR-RIGHT OUTER ARCHITECTURE (Grows t = 0.3s - 2.5s)
   // =========================================================================
   {
-    id: "eucalyptus-far-left-1",
-    name: "Eucalyptus Far Left Low",
-    flowerSrc: "/flowers/eucalyptus.png",
+    id: "eucalyptus-far-left",
+    name: "Eucalyptus Far Left",
+    flowerSrc: FLOWER_ASSETS.fillers.eucalyptus,
     layer: "back",
     flowerSize: 130,
     startX: 172,
@@ -82,9 +83,9 @@ const PLANTS_DATA: PlantData[] = [
     swayClass: "animate-sway-2",
   },
   {
-    id: "eucalyptus-far-right-1",
-    name: "Eucalyptus Far Right Low",
-    flowerSrc: "/flowers/eucalyptus.png",
+    id: "eucalyptus-far-right",
+    name: "Eucalyptus Far Right",
+    flowerSrc: FLOWER_ASSETS.fillers.eucalyptus,
     layer: "back",
     flowerSize: 130,
     startX: 228,
@@ -108,9 +109,9 @@ const PLANTS_DATA: PlantData[] = [
     swayClass: "animate-sway-3",
   },
   {
-    id: "babys-breath-outer-left-high",
+    id: "babys-breath-outer-left",
     name: "Baby's Breath Outer Left High",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "back",
     flowerSize: 115,
     startX: 178,
@@ -130,9 +131,9 @@ const PLANTS_DATA: PlantData[] = [
     swayClass: "animate-sway-1",
   },
   {
-    id: "babys-breath-outer-right-high",
+    id: "babys-breath-outer-right",
     name: "Baby's Breath Outer Right High",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "back",
     flowerSize: 115,
     startX: 222,
@@ -154,7 +155,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "lavender-far-left",
     name: "Lavender Far Left",
-    flowerSrc: "/flowers/lavender.png",
+    flowerSrc: FLOWER_ASSETS.fillers.lavender,
     layer: "back",
     flowerSize: 105,
     startX: 174,
@@ -176,7 +177,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "lavender-far-right",
     name: "Lavender Far Right",
-    flowerSrc: "/flowers/lavender.png",
+    flowerSrc: FLOWER_ASSETS.fillers.lavender,
     layer: "back",
     flowerSize: 105,
     startX: 226,
@@ -197,12 +198,12 @@ const PLANTS_DATA: PlantData[] = [
   },
 
   // =========================================================================
-  // 2. TALL BACKGROUND STATEMENT ARCHITECTURE (Grows t = 2.1s - 4.5s)
+  // 2. TALL BACKGROUND STATEMENT BLOOMS (Grows t = 2.1s - 4.5s)
   // =========================================================================
   {
     id: "cherry-blossom-top-center",
     name: "Cherry Blossom Branch Top Center",
-    flowerSrc: "/flowers/cherry_blossom.png",
+    flowerSrc: FLOWER_ASSETS.fillers.cherryBlossom,
     layer: "back",
     flowerSize: 145,
     startX: 202,
@@ -224,7 +225,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "cherry-blossom-top-left",
     name: "Cherry Blossom Branch Left High",
-    flowerSrc: "/flowers/cherry_blossom.png",
+    flowerSrc: FLOWER_ASSETS.fillers.cherryBlossom,
     layer: "back",
     flowerSize: 125,
     startX: 190,
@@ -246,7 +247,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "cherry-blossom-top-right",
     name: "Cherry Blossom Branch Right High",
-    flowerSrc: "/flowers/cherry_blossom.png",
+    flowerSrc: FLOWER_ASSETS.fillers.cherryBlossom,
     layer: "back",
     flowerSize: 125,
     startX: 210,
@@ -268,7 +269,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "babys-breath-inner-left",
     name: "Baby's Breath Inner Left High",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "back",
     flowerSize: 105,
     startX: 185,
@@ -290,7 +291,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "babys-breath-inner-right",
     name: "Baby's Breath Inner Right High",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "back",
     flowerSize: 105,
     startX: 215,
@@ -316,7 +317,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-tulip-tall-left",
     name: "Pink Tulip Tall Left",
-    flowerSrc: "/flowers/pink_tulip.png",
+    flowerSrc: FLOWER_ASSETS.tulips.pink,
     layer: "mid",
     flowerSize: 108,
     startX: 184,
@@ -342,7 +343,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-rose-tall-right",
     name: "White Rose Tall Right",
-    flowerSrc: "/flowers/white_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.white,
     layer: "mid",
     flowerSize: 118,
     startX: 216,
@@ -368,7 +369,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-peony-tall-center",
     name: "White Peony Tall Center",
-    flowerSrc: "/flowers/white_peony.png",
+    flowerSrc: FLOWER_ASSETS.peonies.white,
     layer: "mid",
     flowerSize: 130,
     startX: 206,
@@ -393,7 +394,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "red-rose-tall-left",
     name: "Velvety Red Rose Tall Left",
-    flowerSrc: "/flowers/red_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.red,
     layer: "mid",
     flowerSize: 120,
     startX: 194,
@@ -418,7 +419,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-tulip-mid-right",
     name: "Pink Tulip Mid Right",
-    flowerSrc: "/flowers/pink_tulip.png",
+    flowerSrc: FLOWER_ASSETS.tulips.pink,
     layer: "mid",
     flowerSize: 104,
     startX: 212,
@@ -443,7 +444,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-rose-mid-left-high",
     name: "Pink Rose Mid Left High",
-    flowerSrc: "/flowers/pink_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.pink,
     layer: "mid",
     flowerSize: 115,
     startX: 186,
@@ -472,7 +473,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-daisy-mid-left",
     name: "White Daisy Mid Left",
-    flowerSrc: "/flowers/white_daisy.png",
+    flowerSrc: FLOWER_ASSETS.daisies.white,
     layer: "mid",
     flowerSize: 96,
     startX: 178,
@@ -497,7 +498,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-daisy-mid-right",
     name: "White Daisy Mid Right",
-    flowerSrc: "/flowers/white_daisy.png",
+    flowerSrc: FLOWER_ASSETS.daisies.white,
     layer: "mid",
     flowerSize: 96,
     startX: 222,
@@ -522,7 +523,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-rose-mid-left-tier",
     name: "Pink English Rose Mid Left Tier",
-    flowerSrc: "/flowers/pink_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.pink,
     layer: "mid",
     flowerSize: 116,
     startX: 188,
@@ -547,7 +548,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "red-rose-mid-right-tier",
     name: "Red Rose Mid Right Tier",
-    flowerSrc: "/flowers/red_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.red,
     layer: "mid",
     flowerSize: 116,
     startX: 212,
@@ -572,7 +573,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "babys-breath-mid-center-filler",
     name: "Baby's Breath Mid Center Filler",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "mid",
     flowerSize: 110,
     startX: 200,
@@ -598,7 +599,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-tulip-foreground-left",
     name: "Pink Tulip Foreground Left",
-    flowerSrc: "/flowers/pink_tulip.png",
+    flowerSrc: FLOWER_ASSETS.tulips.pink,
     layer: "front",
     flowerSize: 106,
     startX: 190,
@@ -623,7 +624,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-peony-foreground-right",
     name: "White Peony Foreground Right",
-    flowerSrc: "/flowers/white_peony.png",
+    flowerSrc: FLOWER_ASSETS.peonies.white,
     layer: "front",
     flowerSize: 124,
     startX: 210,
@@ -648,7 +649,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "pink-rose-focal-center",
     name: "Blush English Rose Centerpiece",
-    flowerSrc: "/flowers/pink_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.pink,
     layer: "front",
     flowerSize: 130,
     startX: 200,
@@ -674,7 +675,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-daisy-front-left",
     name: "White Daisy Front Left",
-    flowerSrc: "/flowers/white_daisy.png",
+    flowerSrc: FLOWER_ASSETS.daisies.white,
     layer: "front",
     flowerSize: 90,
     startX: 184,
@@ -696,7 +697,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "white-rose-front-right",
     name: "White Rose Front Right",
-    flowerSrc: "/flowers/white_rose.png",
+    flowerSrc: FLOWER_ASSETS.roses.white,
     layer: "front",
     flowerSize: 105,
     startX: 216,
@@ -718,7 +719,7 @@ const PLANTS_DATA: PlantData[] = [
   {
     id: "babys-breath-front-tuck-center",
     name: "Baby's Breath Front Tuck Center",
-    flowerSrc: "/flowers/babys_breath.png",
+    flowerSrc: FLOWER_ASSETS.fillers.babyBreath,
     layer: "front",
     flowerSize: 100,
     startX: 200,
@@ -791,7 +792,7 @@ function generateCubicLeafPath(plant: PlantData, leaf: PlantLeaf) {
   return { d, origin: `${origin.x}px ${origin.y}px` };
 }
 
-export default function MassiveBotanicalBouquet() {
+export default function BotanicalMotionBouquet() {
   const [started, setStarted] = useState(false);
   const [bloomComplete, setBloomComplete] = useState(false);
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -1008,7 +1009,7 @@ export default function MassiveBotanicalBouquet() {
             </linearGradient>
           </defs>
 
-          {/* Render all 27+ botanical plant units */}
+          {/* Render all 30 botanical plant units */}
           {PLANTS_DATA.map((plant) => {
             const stemD = `M ${plant.startX} ${plant.startY} C ${plant.cp1X} ${plant.cp1Y}, ${plant.cp2X} ${plant.cp2Y}, ${plant.endX} ${plant.endY}`;
 
