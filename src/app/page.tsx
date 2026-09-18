@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface StarParticle {
@@ -14,216 +13,575 @@ interface StarParticle {
   pulseSpeed: number;
 }
 
-interface FlowerItem {
-  id: string;
-  name: string;
-  src: string;
-  // SVG Stem Path (ViewBox: 400 x 540, base at (200, 540))
-  stem: {
-    d: string;
-    strokeWidth: number;
-    delay: number;
-    duration: number;
-  };
-  // Leaf along the stem
-  leaf?: {
-    d: string;
-    origin: string;
-    delay: number;
-  };
-  // Flower Blossom position (mapped to SVG coordinate system % & px)
-  flower: {
-    xPercent: number; // 0 to 100% horizontally
-    yPercent: number; // 0 to 100% from bottom
-    sizeMobile: number; // width/height on mobile in px
-    sizeDesktop: number; // width/height on desktop in px
-    rotate: number; // natural tilt in deg
-    delay: number; // bloom start time
-    duration: number; // bloom expansion duration
-    zIndex: number; // depth layer
-    swayClass: string;
-  };
+interface PlantLeaf {
+  t: number; // position along stem curve (0 = base, 1 = tip)
+  side: "left" | "right";
+  length: number;
+  angle: number;
+  delayOffset: number;
 }
 
-// 24 Botanical Elements arranged like a luxury hand-tied bouquet
-const BOUQUET_SYSTEM: FlowerItem[] = [
-  // ==========================================
-  // BACKGROUND FOLIAGE & AIRY SPRIGS (Z: 4 - 8)
-  // ==========================================
+interface PlantDefinition {
+  id: string;
+  name: string;
+  flowerSrc: string;
+  layer: "back" | "mid" | "front";
+  flowerSize: number; // diameter in SVG units
+  flowerOffsetY?: number; // small vertical adjustment to align stem tip under receptacle
+  // Stem geometry (viewBox 0 0 400 580)
+  startX: number;
+  startY: number;
+  controlX: number;
+  controlY: number;
+  endX: number;
+  endY: number;
+  stemWidth: number;
+  stemColor?: string;
+  // Timing
+  startDelay: number;
+  stemDuration: number;
+  bloomDelay: number;
+  bloomDuration: number;
+  // Foliage
+  leaves?: PlantLeaf[];
+  // Sway physics class
+  swayClass: string;
+}
+
+// 30 Hand-crafted Botanical Plants forming a wide, lush, real hand-tied bouquet
+const BOUQUET_PLANTS: PlantDefinition[] = [
+  // =========================================================
+  // 1. FAR-LEFT & FAR-RIGHT OUTER WIDE STRUCTURE (Layer: back)
+  // =========================================================
   {
-    id: "eucalyptus-left",
-    name: "Eucalyptus Left",
-    src: "/flowers/eucalyptus.png",
-    stem: { d: "M 200 540 C 160 420, 100 320, 75 190", strokeWidth: 2.8, delay: 0.8, duration: 2.2 },
-    leaf: { d: "M 130 380 C 85 360, 50 330, 45 280 C 70 310, 110 335, 130 365", origin: "130px 380px", delay: 1.8 },
-    flower: { xPercent: 18, yPercent: 62, sizeMobile: 135, sizeDesktop: 165, rotate: -26, delay: 2.0, duration: 2.0, zIndex: 4, swayClass: "animate-sway-2" },
+    id: "eucalyptus-outer-left",
+    name: "Outer Eucalyptus Left",
+    flowerSrc: "/flowers/eucalyptus.png",
+    layer: "back",
+    flowerSize: 130,
+    startX: 170,
+    startY: 570,
+    controlX: 95,
+    controlY: 380,
+    endX: 42,
+    endY: 220,
+    stemWidth: 2.8,
+    startDelay: 0.5,
+    stemDuration: 2.2,
+    bloomDelay: 2.1,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.45, side: "left", length: 32, angle: -40, delayOffset: 1.0 },
+      { t: 0.70, side: "right", length: 28, angle: 30, delayOffset: 1.4 },
+    ],
+    swayClass: "animate-sway-2",
   },
   {
-    id: "eucalyptus-right",
-    name: "Eucalyptus Right",
-    src: "/flowers/eucalyptus.png",
-    stem: { d: "M 200 540 C 240 420, 300 320, 325 190", strokeWidth: 2.8, delay: 1.1, duration: 2.2 },
-    leaf: { d: "M 270 380 C 315 360, 350 330, 355 280 C 330 310, 290 335, 270 365", origin: "270px 380px", delay: 2.1 },
-    flower: { xPercent: 82, yPercent: 62, sizeMobile: 135, sizeDesktop: 165, rotate: 26, delay: 2.3, duration: 2.0, zIndex: 4, swayClass: "animate-sway-3" },
+    id: "eucalyptus-outer-right",
+    name: "Outer Eucalyptus Right",
+    flowerSrc: "/flowers/eucalyptus.png",
+    layer: "back",
+    flowerSize: 130,
+    startX: 230,
+    startY: 570,
+    controlX: 305,
+    controlY: 380,
+    endX: 358,
+    endY: 220,
+    stemWidth: 2.8,
+    startDelay: 0.8,
+    stemDuration: 2.2,
+    bloomDelay: 2.4,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.45, side: "right", length: 32, angle: 40, delayOffset: 1.0 },
+      { t: 0.70, side: "left", length: 28, angle: -30, delayOffset: 1.4 },
+    ],
+    swayClass: "animate-sway-3",
   },
   {
-    id: "babys-breath-back-left",
-    name: "Baby's Breath Back Left",
-    src: "/flowers/babys_breath.png",
-    stem: { d: "M 200 540 C 170 380, 125 260, 105 145", strokeWidth: 2.0, delay: 1.5, duration: 2.0 },
-    flower: { xPercent: 26, yPercent: 71, sizeMobile: 125, sizeDesktop: 155, rotate: -20, delay: 2.7, duration: 1.8, zIndex: 6, swayClass: "animate-sway-1" },
+    id: "babys-breath-wide-left",
+    name: "Baby's Breath Wide Left",
+    flowerSrc: "/flowers/babys_breath.png",
+    layer: "back",
+    flowerSize: 110,
+    startX: 175,
+    startY: 570,
+    controlX: 115,
+    controlY: 340,
+    endX: 68,
+    endY: 155,
+    stemWidth: 2.0,
+    startDelay: 1.2,
+    stemDuration: 2.0,
+    bloomDelay: 2.7,
+    bloomDuration: 1.5,
+    swayClass: "animate-sway-1",
   },
   {
-    id: "babys-breath-back-right",
-    name: "Baby's Breath Back Right",
-    src: "/flowers/babys_breath.png",
-    stem: { d: "M 200 540 C 230 380, 275 260, 295 145", strokeWidth: 2.0, delay: 1.8, duration: 2.0 },
-    flower: { xPercent: 74, yPercent: 71, sizeMobile: 125, sizeDesktop: 155, rotate: 20, delay: 3.0, duration: 1.8, zIndex: 6, swayClass: "animate-sway-2" },
+    id: "babys-breath-wide-right",
+    name: "Baby's Breath Wide Right",
+    flowerSrc: "/flowers/babys_breath.png",
+    layer: "back",
+    flowerSize: 110,
+    startX: 225,
+    startY: 570,
+    controlX: 285,
+    controlY: 340,
+    endX: 332,
+    endY: 155,
+    stemWidth: 2.0,
+    startDelay: 1.5,
+    stemDuration: 2.0,
+    bloomDelay: 3.0,
+    bloomDuration: 1.5,
+    swayClass: "animate-sway-2",
   },
+
+  // =========================================================
+  // 2. TALL BACKGROUND STATEMENT BLOOMS & WILD LAVENDER (Layer: back)
+  // =========================================================
   {
     id: "cherry-blossom-top",
     name: "Cherry Blossom Branch Top",
-    src: "/flowers/cherry_blossom.png",
-    stem: { d: "M 200 540 C 205 360, 215 220, 210 90", strokeWidth: 2.2, delay: 2.2, duration: 2.2 },
-    flower: { xPercent: 52, yPercent: 81, sizeMobile: 140, sizeDesktop: 175, rotate: 6, delay: 3.4, duration: 1.9, zIndex: 7, swayClass: "animate-sway-1" },
+    flowerSrc: "/flowers/cherry_blossom.png",
+    layer: "back",
+    flowerSize: 135,
+    startX: 202,
+    startY: 570,
+    controlX: 212,
+    controlY: 300,
+    endX: 205,
+    endY: 88,
+    stemWidth: 2.4,
+    startDelay: 1.9,
+    stemDuration: 2.3,
+    bloomDelay: 3.6,
+    bloomDuration: 1.7,
+    swayClass: "animate-sway-1",
+  },
+  {
+    id: "lavender-mid-left",
+    name: "Lavender Mid Left",
+    flowerSrc: "/flowers/lavender.png",
+    layer: "back",
+    flowerSize: 105,
+    startX: 180,
+    startY: 570,
+    controlX: 135,
+    controlY: 370,
+    endX: 102,
+    endY: 245,
+    stemWidth: 2.2,
+    startDelay: 2.3,
+    stemDuration: 1.9,
+    bloomDelay: 3.8,
+    bloomDuration: 1.4,
+    swayClass: "animate-sway-2",
+  },
+  {
+    id: "lavender-mid-right",
+    name: "Lavender Mid Right",
+    flowerSrc: "/flowers/lavender.png",
+    layer: "back",
+    flowerSize: 105,
+    startX: 220,
+    startY: 570,
+    controlX: 265,
+    controlY: 370,
+    endX: 298,
+    endY: 245,
+    stemWidth: 2.2,
+    startDelay: 2.6,
+    stemDuration: 1.9,
+    bloomDelay: 4.1,
+    bloomDuration: 1.4,
+    swayClass: "animate-sway-3",
   },
 
-  // ==========================================
-  // MID-GROUND STATEMENT BLOOMS (Z: 10 - 18)
-  // ==========================================
-  {
-    id: "lavender-left",
-    name: "Lavender Left",
-    src: "/flowers/lavender.png",
-    stem: { d: "M 200 540 C 165 420, 110 320, 85 220", strokeWidth: 2.2, delay: 2.6, duration: 1.9 },
-    flower: { xPercent: 21, yPercent: 57, sizeMobile: 110, sizeDesktop: 135, rotate: -30, delay: 3.8, duration: 1.5, zIndex: 10, swayClass: "animate-sway-2" },
-  },
-  {
-    id: "lavender-right",
-    name: "Lavender Right",
-    src: "/flowers/lavender.png",
-    stem: { d: "M 200 540 C 235 420, 290 320, 315 220", strokeWidth: 2.2, delay: 2.9, duration: 1.9 },
-    flower: { xPercent: 79, yPercent: 57, sizeMobile: 110, sizeDesktop: 135, rotate: 30, delay: 4.1, duration: 1.5, zIndex: 10, swayClass: "animate-sway-3" },
-  },
+  // =========================================================
+  // 3. TALL MIDGROUND ROSES & TULIPS (Layer: mid)
+  // =========================================================
   {
     id: "pink-tulip-tall-left",
     name: "Pink Tulip Tall Left",
-    src: "/flowers/pink_tulip.png",
-    stem: { d: "M 200 540 C 185 390, 155 260, 145 140", strokeWidth: 3.4, delay: 3.2, duration: 2.0 },
-    leaf: { d: "M 175 360 C 135 340, 100 310, 95 260 C 115 290, 150 315, 170 340", origin: "175px 360px", delay: 4.0 },
-    flower: { xPercent: 36, yPercent: 72, sizeMobile: 105, sizeDesktop: 130, rotate: -15, delay: 4.5, duration: 1.6, zIndex: 14, swayClass: "animate-sway-3" },
+    flowerSrc: "/flowers/pink_tulip.png",
+    layer: "mid",
+    flowerSize: 105,
+    startX: 185,
+    startY: 570,
+    controlX: 155,
+    controlY: 330,
+    endX: 142,
+    endY: 142,
+    stemWidth: 3.2,
+    startDelay: 3.0,
+    stemDuration: 2.0,
+    bloomDelay: 4.5,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.55, side: "left", length: 36, angle: -35, delayOffset: 1.1 },
+      { t: 0.75, side: "right", length: 28, angle: 25, delayOffset: 1.4 },
+    ],
+    swayClass: "animate-sway-3",
   },
   {
     id: "white-rose-tall-right",
     name: "White Rose Tall Right",
-    src: "/flowers/white_rose.png",
-    stem: { d: "M 200 540 C 215 390, 245 260, 255 145", strokeWidth: 3.4, delay: 3.5, duration: 2.0 },
-    leaf: { d: "M 225 360 C 265 340, 300 310, 305 260 C 285 290, 250 315, 230 340", origin: "225px 360px", delay: 4.3 },
-    flower: { xPercent: 64, yPercent: 71, sizeMobile: 115, sizeDesktop: 140, rotate: 14, delay: 4.8, duration: 1.6, zIndex: 14, swayClass: "animate-sway-1" },
+    flowerSrc: "/flowers/white_rose.png",
+    layer: "mid",
+    flowerSize: 115,
+    startX: 215,
+    startY: 570,
+    controlX: 245,
+    controlY: 330,
+    endX: 258,
+    endY: 146,
+    stemWidth: 3.2,
+    startDelay: 3.3,
+    stemDuration: 2.0,
+    bloomDelay: 4.8,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.55, side: "right", length: 36, angle: 35, delayOffset: 1.1 },
+      { t: 0.75, side: "left", length: 28, angle: -25, delayOffset: 1.4 },
+    ],
+    swayClass: "animate-sway-1",
   },
   {
-    id: "white-peony-tall-center",
-    name: "White Peony Core",
-    src: "/flowers/white_peony.png",
-    stem: { d: "M 200 540 C 205 400, 215 280, 215 170", strokeWidth: 3.6, delay: 3.8, duration: 2.1 },
-    leaf: { d: "M 210 390 C 240 375, 265 350, 270 310 C 250 335, 225 355, 208 375", origin: "210px 390px", delay: 4.7 },
-    flower: { xPercent: 54, yPercent: 66, sizeMobile: 125, sizeDesktop: 155, rotate: 6, delay: 5.2, duration: 1.7, zIndex: 16, swayClass: "animate-sway-2" },
+    id: "white-peony-upper-center",
+    name: "White Peony Upper Center",
+    flowerSrc: "/flowers/white_peony.png",
+    layer: "mid",
+    flowerSize: 125,
+    startX: 205,
+    startY: 570,
+    controlX: 215,
+    controlY: 330,
+    endX: 218,
+    endY: 175,
+    stemWidth: 3.5,
+    startDelay: 3.7,
+    stemDuration: 2.0,
+    bloomDelay: 5.2,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.60, side: "right", length: 34, angle: 30, delayOffset: 1.2 },
+    ],
+    swayClass: "animate-sway-2",
   },
   {
-    id: "red-rose-tall-center",
-    name: "Velvet Red Rose Tall",
-    src: "/flowers/red_rose.png",
-    stem: { d: "M 200 540 C 195 400, 185 280, 185 175", strokeWidth: 3.6, delay: 4.2, duration: 2.1 },
-    leaf: { d: "M 190 390 C 160 375, 135 350, 130 310 C 150 335, 175 355, 192 375", origin: "190px 390px", delay: 5.1 },
-    flower: { xPercent: 46, yPercent: 65, sizeMobile: 120, sizeDesktop: 150, rotate: -6, delay: 5.6, duration: 1.7, zIndex: 16, swayClass: "animate-sway-1" },
+    id: "red-rose-upper-left",
+    name: "Velvety Red Rose Upper Left",
+    flowerSrc: "/flowers/red_rose.png",
+    layer: "mid",
+    flowerSize: 115,
+    startX: 190,
+    startY: 570,
+    controlX: 180,
+    controlY: 330,
+    endX: 178,
+    endY: 182,
+    stemWidth: 3.5,
+    startDelay: 4.0,
+    stemDuration: 2.0,
+    bloomDelay: 5.5,
+    bloomDuration: 1.6,
+    leaves: [
+      { t: 0.60, side: "left", length: 34, angle: -30, delayOffset: 1.2 },
+    ],
+    swayClass: "animate-sway-1",
   },
 
-  // ==========================================
-  // MID-FOREGROUND VIBRANT ROSES & DAISIES (Z: 20 - 24)
-  // ==========================================
+  // =========================================================
+  // 4. MID-LAYER DAISIES, ROSES & FILLERS (Layer: mid)
+  // =========================================================
   {
-    id: "daisy-mid-left",
-    name: "White Daisy Left",
-    src: "/flowers/white_daisy.png",
-    stem: { d: "M 200 540 C 175 420, 140 320, 125 230", strokeWidth: 2.6, delay: 4.6, duration: 1.8 },
-    flower: { xPercent: 31, yPercent: 56, sizeMobile: 95, sizeDesktop: 120, rotate: -16, delay: 6.0, duration: 1.4, zIndex: 20, swayClass: "animate-sway-1" },
+    id: "white-daisy-mid-left",
+    name: "White Daisy Mid Left",
+    flowerSrc: "/flowers/white_daisy.png",
+    layer: "mid",
+    flowerSize: 92,
+    startX: 180,
+    startY: 570,
+    controlX: 145,
+    controlY: 380,
+    endX: 125,
+    endY: 232,
+    stemWidth: 2.6,
+    startDelay: 4.4,
+    stemDuration: 1.8,
+    bloomDelay: 5.8,
+    bloomDuration: 1.4,
+    leaves: [
+      { t: 0.50, side: "left", length: 26, angle: -35, delayOffset: 0.9 },
+    ],
+    swayClass: "animate-sway-1",
   },
   {
-    id: "daisy-mid-right",
-    name: "White Daisy Right",
-    src: "/flowers/white_daisy.png",
-    stem: { d: "M 200 540 C 225 420, 260 320, 275 230", strokeWidth: 2.6, delay: 4.9, duration: 1.8 },
-    flower: { xPercent: 69, yPercent: 56, sizeMobile: 95, sizeDesktop: 120, rotate: 16, delay: 6.3, duration: 1.4, zIndex: 20, swayClass: "animate-sway-2" },
+    id: "white-daisy-mid-right",
+    name: "White Daisy Mid Right",
+    flowerSrc: "/flowers/white_daisy.png",
+    layer: "mid",
+    flowerSize: 92,
+    startX: 220,
+    startY: 570,
+    controlX: 255,
+    controlY: 380,
+    endX: 275,
+    endY: 232,
+    stemWidth: 2.6,
+    startDelay: 4.7,
+    stemDuration: 1.8,
+    bloomDelay: 6.1,
+    bloomDuration: 1.4,
+    leaves: [
+      { t: 0.50, side: "right", length: 26, angle: 35, delayOffset: 0.9 },
+    ],
+    swayClass: "animate-sway-2",
   },
   {
     id: "pink-rose-mid-left",
-    name: "Pink English Rose Left",
-    src: "/flowers/pink_rose.png",
-    stem: { d: "M 200 540 C 185 430, 160 330, 155 240", strokeWidth: 3.2, delay: 5.3, duration: 1.8 },
-    flower: { xPercent: 39, yPercent: 53, sizeMobile: 115, sizeDesktop: 145, rotate: -10, delay: 6.7, duration: 1.5, zIndex: 22, swayClass: "animate-sway-3" },
+    name: "Pink English Rose Mid Left",
+    flowerSrc: "/flowers/pink_rose.png",
+    layer: "mid",
+    flowerSize: 112,
+    startX: 188,
+    startY: 570,
+    controlX: 165,
+    controlY: 390,
+    endX: 156,
+    endY: 248,
+    stemWidth: 3.2,
+    startDelay: 5.0,
+    stemDuration: 1.7,
+    bloomDelay: 6.4,
+    bloomDuration: 1.5,
+    leaves: [
+      { t: 0.55, side: "left", length: 30, angle: -28, delayOffset: 0.9 },
+    ],
+    swayClass: "animate-sway-3",
   },
   {
     id: "red-rose-mid-right",
     name: "Red Rose Mid Right",
-    src: "/flowers/red_rose.png",
-    stem: { d: "M 200 540 C 215 430, 240 330, 245 245", strokeWidth: 3.2, delay: 5.6, duration: 1.8 },
-    flower: { xPercent: 61, yPercent: 52, sizeMobile: 115, sizeDesktop: 145, rotate: 10, delay: 7.0, duration: 1.5, zIndex: 22, swayClass: "animate-sway-1" },
+    flowerSrc: "/flowers/red_rose.png",
+    layer: "mid",
+    flowerSize: 112,
+    startX: 212,
+    startY: 570,
+    controlX: 235,
+    controlY: 390,
+    endX: 244,
+    endY: 250,
+    stemWidth: 3.2,
+    startDelay: 5.3,
+    stemDuration: 1.7,
+    bloomDelay: 6.7,
+    bloomDuration: 1.5,
+    leaves: [
+      { t: 0.55, side: "right", length: 30, angle: 28, delayOffset: 0.9 },
+    ],
+    swayClass: "animate-sway-1",
   },
   {
-    id: "babys-breath-mid-accent",
-    name: "Baby's Breath Mid Accent",
-    src: "/flowers/babys_breath.png",
-    stem: { d: "M 200 540 C 200 420, 200 320, 200 240", strokeWidth: 1.8, delay: 5.9, duration: 1.6 },
-    flower: { xPercent: 50, yPercent: 52, sizeMobile: 110, sizeDesktop: 135, rotate: 0, delay: 7.3, duration: 1.4, zIndex: 23, swayClass: "animate-sway-2" },
+    id: "babys-breath-mid-center",
+    name: "Baby's Breath Mid Center Filler",
+    flowerSrc: "/flowers/babys_breath.png",
+    layer: "mid",
+    flowerSize: 105,
+    startX: 200,
+    startY: 570,
+    controlX: 200,
+    controlY: 380,
+    endX: 200,
+    endY: 238,
+    stemWidth: 1.8,
+    startDelay: 5.6,
+    stemDuration: 1.6,
+    bloomDelay: 6.9,
+    bloomDuration: 1.4,
+    swayClass: "animate-sway-2",
   },
 
-  // ==========================================
-  // FOREGROUND FOCAL BLOOMS (Z: 25 - 30)
-  // ==========================================
+  // =========================================================
+  // 5. FOREGROUND MAIN FOCAL BLOOMS (Layer: front)
+  // =========================================================
   {
-    id: "pink-tulip-front",
-    name: "Pink Tulip Foreground",
-    src: "/flowers/pink_tulip.png",
-    stem: { d: "M 200 540 C 190 450, 170 370, 170 290", strokeWidth: 3.2, delay: 6.3, duration: 1.6 },
-    flower: { xPercent: 42, yPercent: 43, sizeMobile: 105, sizeDesktop: 130, rotate: -8, delay: 7.7, duration: 1.4, zIndex: 26, swayClass: "animate-sway-2" },
+    id: "pink-tulip-front-left",
+    name: "Pink Tulip Foreground Left",
+    flowerSrc: "/flowers/pink_tulip.png",
+    layer: "front",
+    flowerSize: 100,
+    startX: 190,
+    startY: 570,
+    controlX: 175,
+    controlY: 420,
+    endX: 168,
+    endY: 305,
+    stemWidth: 3.2,
+    startDelay: 6.0,
+    stemDuration: 1.5,
+    bloomDelay: 7.2,
+    bloomDuration: 1.4,
+    leaves: [
+      { t: 0.55, side: "left", length: 32, angle: -32, delayOffset: 0.8 },
+    ],
+    swayClass: "animate-sway-2",
   },
   {
-    id: "white-peony-front",
-    name: "White Peony Foreground",
-    src: "/flowers/white_peony.png",
-    stem: { d: "M 200 540 C 210 450, 230 370, 230 295", strokeWidth: 3.4, delay: 6.6, duration: 1.6 },
-    flower: { xPercent: 58, yPercent: 42, sizeMobile: 115, sizeDesktop: 145, rotate: 7, delay: 8.0, duration: 1.4, zIndex: 26, swayClass: "animate-sway-3" },
+    id: "white-peony-front-right",
+    name: "White Peony Foreground Right",
+    flowerSrc: "/flowers/white_peony.png",
+    layer: "front",
+    flowerSize: 118,
+    startX: 210,
+    startY: 570,
+    controlX: 225,
+    controlY: 420,
+    endX: 232,
+    endY: 308,
+    stemWidth: 3.4,
+    startDelay: 6.3,
+    stemDuration: 1.5,
+    bloomDelay: 7.5,
+    bloomDuration: 1.4,
+    leaves: [
+      { t: 0.55, side: "right", length: 32, angle: 32, delayOffset: 0.8 },
+    ],
+    swayClass: "animate-sway-3",
   },
   {
-    id: "pink-rose-front-center",
-    name: "Blush Rose Centerpiece",
-    src: "/flowers/pink_rose.png",
-    stem: { d: "M 200 540 C 200 460, 200 380, 200 310", strokeWidth: 3.5, delay: 7.0, duration: 1.5 },
-    flower: { xPercent: 50, yPercent: 39, sizeMobile: 120, sizeDesktop: 150, rotate: 0, delay: 8.4, duration: 1.5, zIndex: 28, swayClass: "animate-sway-1" },
+    id: "pink-rose-focal-center",
+    name: "Blush English Rose Centerpiece",
+    flowerSrc: "/flowers/pink_rose.png",
+    layer: "front",
+    flowerSize: 122,
+    startX: 200,
+    startY: 570,
+    controlX: 200,
+    controlY: 430,
+    endX: 200,
+    endY: 318,
+    stemWidth: 3.6,
+    startDelay: 6.7,
+    stemDuration: 1.5,
+    bloomDelay: 7.9,
+    bloomDuration: 1.5,
+    leaves: [
+      { t: 0.50, side: "left", length: 28, angle: -25, delayOffset: 0.8 },
+      { t: 0.50, side: "right", length: 28, angle: 25, delayOffset: 0.8 },
+    ],
+    swayClass: "animate-sway-1",
   },
   {
     id: "white-daisy-front-left",
     name: "White Daisy Front Left",
-    src: "/flowers/white_daisy.png",
-    stem: { d: "M 200 540 C 185 470, 165 410, 160 340", strokeWidth: 2.4, delay: 7.3, duration: 1.4 },
-    flower: { xPercent: 40, yPercent: 33, sizeMobile: 85, sizeDesktop: 105, rotate: -14, delay: 8.8, duration: 1.3, zIndex: 30, swayClass: "animate-sway-2" },
+    flowerSrc: "/flowers/white_daisy.png",
+    layer: "front",
+    flowerSize: 85,
+    startX: 185,
+    startY: 570,
+    controlX: 168,
+    controlY: 460,
+    endX: 158,
+    endY: 362,
+    stemWidth: 2.4,
+    startDelay: 7.1,
+    stemDuration: 1.4,
+    bloomDelay: 8.2,
+    bloomDuration: 1.3,
+    swayClass: "animate-sway-2",
   },
   {
     id: "white-rose-front-right",
     name: "White Rose Front Right",
-    src: "/flowers/white_rose.png",
-    stem: { d: "M 200 540 C 215 470, 235 410, 240 340", strokeWidth: 2.8, delay: 7.6, duration: 1.4 },
-    flower: { xPercent: 60, yPercent: 33, sizeMobile: 95, sizeDesktop: 115, rotate: 14, delay: 9.1, duration: 1.3, zIndex: 30, swayClass: "animate-sway-3" },
+    flowerSrc: "/flowers/white_rose.png",
+    layer: "front",
+    flowerSize: 95,
+    startX: 215,
+    startY: 570,
+    controlX: 232,
+    controlY: 460,
+    endX: 242,
+    endY: 362,
+    stemWidth: 2.8,
+    startDelay: 7.4,
+    stemDuration: 1.4,
+    bloomDelay: 8.5,
+    bloomDuration: 1.3,
+    swayClass: "animate-sway-3",
+  },
+  {
+    id: "babys-breath-front-tuck",
+    name: "Baby's Breath Front Tuck",
+    flowerSrc: "/flowers/babys_breath.png",
+    layer: "front",
+    flowerSize: 95,
+    startX: 200,
+    startY: 570,
+    controlX: 200,
+    controlY: 470,
+    endX: 200,
+    endY: 388,
+    stemWidth: 1.8,
+    startDelay: 7.8,
+    stemDuration: 1.3,
+    bloomDelay: 8.8,
+    bloomDuration: 1.2,
+    swayClass: "animate-sway-1",
   },
 ];
 
-export default function BotanicalBouquetPage() {
+// Helper to compute a quadratic bezier point B(t)
+function getBezierPoint(
+  p0: { x: number; y: number },
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  t: number
+) {
+  const invT = 1 - t;
+  const x = invT * invT * p0.x + 2 * invT * t * p1.x + t * t * p2.x;
+  const y = invT * invT * p0.y + 2 * invT * t * p1.y + t * t * p2.y;
+  return { x, y };
+}
+
+// Helper to compute leaf path along stem
+function generateLeafPath(
+  plant: PlantDefinition,
+  leaf: PlantLeaf
+) {
+  const p0 = { x: plant.startX, y: plant.startY };
+  const p1 = { x: plant.controlX, y: plant.controlY };
+  const p2 = { x: plant.endX, y: plant.endY };
+  const origin = getBezierPoint(p0, p1, p2, leaf.t);
+
+  // Compute tangent
+  const invT = 1 - leaf.t;
+  const dx = 2 * invT * (p1.x - p0.x) + 2 * leaf.t * (p2.x - p1.x);
+  const dy = 2 * invT * (p1.y - p0.y) + 2 * leaf.t * (p2.y - p1.y);
+  const stemAngle = Math.atan2(dy, dx); // radians
+
+  const angleRad = (leaf.angle * Math.PI) / 180;
+  const leafDir = stemAngle + angleRad + (leaf.side === "left" ? -Math.PI / 2 : Math.PI / 2);
+
+  const tipX = origin.x + Math.cos(leafDir) * leaf.length;
+  const tipY = origin.y + Math.sin(leafDir) * leaf.length;
+
+  const midX = (origin.x + tipX) / 2 + (leaf.side === "left" ? -6 : 6);
+  const midY = (origin.y + tipY) / 2 - 4;
+
+  const d = `M ${origin.x} ${origin.y} Q ${midX} ${midY} ${tipX} ${tipY} Q ${origin.x + (leaf.side === "left" ? 4 : -4)} ${origin.y - 2} ${origin.x} ${origin.y}`;
+  return { d, origin: `${origin.x}px ${origin.y}px` };
+}
+
+export default function BotanicalMotionBouquet() {
   const [started, setStarted] = useState(false);
   const [bloomComplete, setBloomComplete] = useState(false);
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Background subtle glowing stardust fireflies
+  // Background delicate stardust simulation
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -295,20 +653,20 @@ export default function BotanicalBouquetPage() {
     };
   }, []);
 
-  // Auto-start after 1.4s or on user tap
+  // Auto-start after 1.2s or on user tap
   useEffect(() => {
     const timer = setTimeout(() => {
       setStarted(true);
-    }, 1400);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
 
-  // Final bloom complete at 10.5s
+  // Completion marker at 10.2s
   useEffect(() => {
     if (started) {
       const timer = setTimeout(() => {
         setBloomComplete(true);
-      }, 10500);
+      }, 10200);
       return () => clearTimeout(timer);
     }
   }, [started]);
@@ -340,9 +698,9 @@ export default function BotanicalBouquetPage() {
         className="absolute inset-0 pointer-events-none z-0 h-full w-full"
       />
 
-      {/* Subtle Cinematic Soft Amber & Rose Glow behind the Bouquet */}
+      {/* Subtle Cinematic Soft Ambient Lighting behind the Bouquet */}
       <div
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 h-[60vh] w-[90vw] max-w-[650px] rounded-full bg-radial from-rose-950/18 via-amber-950/10 to-transparent blur-3xl pointer-events-none z-0"
+        className="absolute bottom-2 left-1/2 -translate-x-1/2 h-[65vh] w-[95vw] max-w-[700px] rounded-full bg-radial from-rose-950/20 via-amber-950/10 to-transparent blur-3xl pointer-events-none z-0"
         aria-hidden="true"
       />
 
@@ -361,7 +719,7 @@ export default function BotanicalBouquetPage() {
       </div>
 
       {/* Top Header Section: Lena Fathima K & "For you, Lena ❤️" */}
-      <header className="relative z-30 pt-8 sm:pt-12 px-4 text-center flex flex-col items-center">
+      <header className="relative z-30 pt-7 sm:pt-10 px-4 text-center flex flex-col items-center">
         {/* Name: Lena Fathima K */}
         <motion.h1
           initial={{ opacity: 0, y: 15 }}
@@ -372,7 +730,7 @@ export default function BotanicalBouquetPage() {
           Lena Fathima K
         </motion.h1>
 
-        {/* Subtitle: "For you, Lena ❤️" (Visible from start as requested) */}
+        {/* Subtitle: "For you, Lena ❤️" */}
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -390,7 +748,7 @@ export default function BotanicalBouquetPage() {
               animate={{ opacity: [0.3, 0.85, 0.3] }}
               exit={{ opacity: 0, transition: { duration: 0.4 } }}
               transition={{ duration: 2.2, repeat: Infinity }}
-              className="text-xs sm:text-sm text-rose-200/60 font-light tracking-widest uppercase mt-3 font-sans"
+              className="text-xs sm:text-sm text-rose-200/60 font-light tracking-widest uppercase mt-2.5 font-sans"
             >
               Tap anywhere to bloom
             </motion.p>
@@ -412,116 +770,115 @@ export default function BotanicalBouquetPage() {
         </AnimatePresence>
       </header>
 
-      {/* Main Bouquet Stage: Procedural Botanical Stems + 100% Transparent Real Flower Blossoms */}
-      <div className="relative z-10 w-full max-w-[440px] sm:max-w-[540px] md:max-w-[640px] h-[68vh] sm:h-[72vh] flex items-end justify-center pointer-events-none pb-0">
-        {/* Layer 1: SVG Botanical Stems & Leaves growing organically */}
+      {/* Main Single SVG Botanical Stage: Stems + Foliage + Flowers in ONE Unified Coordinate Space */}
+      <div className="relative z-10 w-full max-w-[460px] sm:max-w-[560px] md:max-w-[660px] h-[68vh] sm:h-[72vh] flex items-end justify-center pointer-events-none pb-0">
         <svg
-          viewBox="0 0 400 540"
-          className="absolute inset-0 w-full h-full overflow-visible z-5"
+          viewBox="0 0 400 580"
+          className="w-full h-full overflow-visible"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
+            {/* Natural botanical stem gradients */}
             <linearGradient id="stemGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#122515" />
-              <stop offset="50%" stopColor="#2E5535" />
-              <stop offset="100%" stopColor="#55825D" />
+              <stop offset="0%" stopColor="#0F2112" />
+              <stop offset="40%" stopColor="#224729" />
+              <stop offset="80%" stopColor="#3E6B48" />
+              <stop offset="100%" stopColor="#5D8B66" />
             </linearGradient>
 
+            {/* Leaf gradient */}
             <linearGradient id="leafGrad" x1="0%" y1="100%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#1B3322" />
-              <stop offset="60%" stopColor="#3E6B47" />
-              <stop offset="100%" stopColor="#6C9A75" />
+              <stop offset="50%" stopColor="#355D3D" />
+              <stop offset="100%" stopColor="#5B8764" />
             </linearGradient>
           </defs>
 
-          {/* Stems & Leaves */}
-          {BOUQUET_SYSTEM.map((f) => (
-            <g key={"stem-group-" + f.id}>
-              {/* Stem Growth */}
-              <motion.path
-                d={f.stem.d}
-                fill="none"
-                stroke="url(#stemGrad)"
-                strokeWidth={f.stem.strokeWidth}
-                strokeLinecap="round"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: started ? 1 : 0 }}
-                transition={{
-                  duration: f.stem.duration,
-                  delay: f.stem.delay,
-                  ease: [0.25, 1, 0.5, 1],
-                }}
-              />
+          {/* Render all 30 botanical plant units */}
+          {BOUQUET_PLANTS.map((plant) => {
+            const stemD = `M ${plant.startX} ${plant.startY} Q ${plant.controlX} ${plant.controlY} ${plant.endX} ${plant.endY}`;
 
-              {/* Leaves Unfurling along Stem */}
-              {f.leaf && (
-                <motion.path
-                  d={f.leaf.d}
-                  fill="url(#leafGrad)"
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{
-                    scale: started ? 1 : 0,
-                    opacity: started ? 0.95 : 0,
-                  }}
-                  transition={{
-                    duration: 1.3,
-                    delay: f.leaf.delay,
-                    ease: "easeOut",
-                  }}
-                  style={{ transformOrigin: f.leaf.origin }}
-                />
-              )}
-            </g>
-          ))}
-        </svg>
-
-        {/* Layer 2: 24 Real Photographic Flower Blooms with 100% Transparent Backgrounds */}
-        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
-          {BOUQUET_SYSTEM.map((f) => (
-            <motion.div
-              key={"bloom-" + f.id}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{
-                scale: started ? [0, 1.14, 1] : 0,
-                opacity: started ? 1 : 0,
-              }}
-              transition={{
-                duration: f.flower.duration,
-                delay: f.flower.delay,
-                ease: [0.34, 1.56, 0.64, 1],
-              }}
-              style={{
-                left: `${f.flower.xPercent}%`,
-                bottom: `${f.flower.yPercent}%`,
-                zIndex: f.flower.zIndex,
-                transform: `translate(-50%, 50%) rotate(${f.flower.rotate}deg)`,
-                transformOrigin: "center bottom",
-              }}
-              className={`absolute flex items-center justify-center ${f.flower.swayClass}`}
-            >
-              {/* Responsive Size Container with Clean Transparent Flower PNG */}
-              <div
-                className="relative select-none pointer-events-none"
+            return (
+              <g
+                key={"plant-" + plant.id}
+                className={plant.swayClass}
                 style={{
-                  width: `clamp(${f.flower.sizeMobile}px, 22vw, ${f.flower.sizeDesktop}px)`,
-                  height: `clamp(${f.flower.sizeMobile}px, 22vw, ${f.flower.sizeDesktop}px)`,
+                  transformOrigin: `${plant.startX}px ${plant.startY}px`,
                 }}
               >
-                <Image
-                  src={f.src}
-                  alt={f.name}
-                  fill
-                  sizes="(max-width: 640px) 130px, 175px"
-                  className="object-contain"
-                  priority
+                {/* 1. Stem growing upward from base */}
+                <motion.path
+                  d={stemD}
+                  fill="none"
+                  stroke="url(#stemGrad)"
+                  strokeWidth={plant.stemWidth}
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: started ? 1 : 0 }}
+                  transition={{
+                    duration: plant.stemDuration,
+                    delay: plant.startDelay,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
                 />
-              </div>
-            </motion.div>
-          ))}
-        </div>
+
+                {/* 2. Leaves along stem */}
+                {plant.leaves?.map((leaf, lIdx) => {
+                  const leafData = generateLeafPath(plant, leaf);
+
+                  return (
+                    <motion.path
+                      key={`leaf-${plant.id}-${lIdx}`}
+                      d={leafData.d}
+                      fill="url(#leafGrad)"
+                      opacity="0.92"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{
+                        scale: started ? 1 : 0,
+                        opacity: started ? 0.92 : 0,
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        delay: plant.startDelay + leaf.delayOffset,
+                        ease: "easeOut",
+                      }}
+                      style={{ transformOrigin: leafData.origin }}
+                    />
+                  );
+                })}
+
+                {/* 3. Flower Head blooming at the EXACT stem endpoint (endX, endY) */}
+                <motion.g
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{
+                    scale: started ? [0, 1.12, 1] : 0,
+                    opacity: started ? 1 : 0,
+                  }}
+                  transition={{
+                    duration: plant.bloomDuration,
+                    delay: plant.bloomDelay,
+                    ease: [0.34, 1.56, 0.64, 1],
+                  }}
+                  style={{
+                    transformOrigin: `${plant.endX}px ${plant.endY}px`,
+                  }}
+                >
+                  <image
+                    href={plant.flowerSrc}
+                    x={plant.endX - plant.flowerSize / 2}
+                    y={plant.endY - plant.flowerSize / 2 + (plant.flowerOffsetY ?? 0)}
+                    width={plant.flowerSize}
+                    height={plant.flowerSize}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                </motion.g>
+              </g>
+            );
+          })}
+        </svg>
       </div>
 
-      {/* Bottom Minimal Space */}
+      {/* Bottom Minimal Hint */}
       <footer className="relative z-30 pb-3 text-center">
         <span className="text-[10px] text-stone-600 tracking-widest uppercase font-light">
           {bloomComplete ? "tap anywhere to bloom with love" : ""}
