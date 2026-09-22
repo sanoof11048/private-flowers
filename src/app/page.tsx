@@ -1391,10 +1391,10 @@ export default function BotanicalMotionBouquet() {
               strokeLinecap="round"
             />
           </motion.g>
-
-          {/* Additive Isolated Real Butterfly Experience */}
-          <RealButterfly fullyBloomed={fullyBloomed} />
         </svg>
+
+        {/* Additive Isolated Real Butterfly Experience (Native GPU Overlay) */}
+        <RealButterfly fullyBloomed={fullyBloomed} />
       </div>
 
       {/* Bottom Minimal Frame Space */}

@@ -66,6 +66,14 @@ export default function PrivateAnalyticsDashboard() {
   const [errorMsg, setErrorMsg] = useState("");
   const [lastUpdated, setLastUpdated] = useState<string>("");
 
+  const [dbStatus, setDbStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    host?: string;
+    database?: string;
+    errorNotice?: string;
+  } | null>(null);
+
   const fetchAnalytics = useCallback(async (pass: string, selectedRange = range, selectedPage = page) => {
     setLoading(true);
     setErrorMsg("");
@@ -91,6 +99,9 @@ export default function PrivateAnalyticsDashboard() {
       const result = await res.json();
       if (result.success && result.data) {
         setData(result.data);
+        if (result.dbStatus) {
+          setDbStatus(result.dbStatus);
+        }
         setAuthenticated(true);
         if (typeof window !== "undefined") {
           sessionStorage.setItem("__adm_key", pass);
@@ -229,13 +240,21 @@ export default function PrivateAnalyticsDashboard() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className={`h-2.5 w-2.5 rounded-full ${dbStatus?.connected ? "bg-emerald-400" : "bg-amber-400"} animate-pulse`} />
               <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white tracking-wide">
                 Private Visit Analytics
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-white/50 mt-1">
-              Database: <span className="text-emerald-400 font-mono font-medium">MonsterASP PostgreSQL</span> • Timezone: <span className="text-rose-300 font-medium">Asia/Kolkata (IST)</span>
+              Database:{" "}
+              <span className={`font-mono font-medium ${dbStatus?.connected ? "text-emerald-400" : "text-amber-300"}`}>
+                {dbStatus?.connected
+                  ? "MonsterASP PostgreSQL (Connected)"
+                  : dbStatus?.configured
+                  ? "MonsterASP PostgreSQL (Connecting...)"
+                  : "Local Mode (Set DATABASE_URL in Vercel)"}
+              </span>{" "}
+              • Timezone: <span className="text-rose-300 font-medium">Asia/Kolkata (IST)</span>
             </p>
           </div>
 

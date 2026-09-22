@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAnalyticsDashboardData } from "@/lib/db";
+import { getAnalyticsDashboardData, getDatabaseDiagnostics } from "@/lib/db";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "lena2026";
@@ -20,11 +21,23 @@ export async function POST(req: NextRequest) {
     const selectedPage = typeof page === "number" && page > 0 ? page : 1;
     const selectedPageSize = typeof pageSize === "number" && pageSize > 0 && pageSize <= 100 ? pageSize : 25;
 
-    const data = await getAnalyticsDashboardData(selectedRange, selectedPage, selectedPageSize);
+    const { summary, dbConnected, errorNotice } = await getAnalyticsDashboardData(
+      selectedRange,
+      selectedPage,
+      selectedPageSize
+    );
+    const diagnostics = getDatabaseDiagnostics();
 
     return NextResponse.json({
       success: true,
-      data,
+      data: summary,
+      dbStatus: {
+        configured: diagnostics.configured,
+        connected: dbConnected,
+        host: diagnostics.host,
+        database: diagnostics.database,
+        errorNotice,
+      },
     });
   } catch (err: unknown) {
     const error = err as Error;

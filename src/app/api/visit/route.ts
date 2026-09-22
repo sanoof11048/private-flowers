@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordVisit } from "@/lib/db";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // In-memory sliding window rate limiter (prevents API abuse / spamming)
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 15;
+const MAX_REQUESTS_PER_WINDOW = 20;
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
@@ -25,16 +26,6 @@ function isRateLimited(key: string): boolean {
   record.count++;
   return false;
 }
-
-// Cleanup stale rate limit entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, value] of rateLimitMap.entries()) {
-    if (now > value.resetTime) {
-      rateLimitMap.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
 
 export async function POST(req: NextRequest) {
   try {

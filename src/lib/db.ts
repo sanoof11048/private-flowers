@@ -13,15 +13,45 @@ import {
 export type { VisitRecord, DailyTrend, TrafficSource, DeviceStats, AnalyticsSummary };
 export { parseDeviceFromUA };
 
-// Global declaration to maintain single pool across Next.js hot reloads in development
+// Global declaration to maintain single pool across Next.js hot reloads & serverless container reuse
 declare global {
   // eslint-disable-next-line no-var
   var __postgresPool: Pool | undefined;
+  // eslint-disable-next-line no-var
+  var __dbInitPromise: Promise<void> | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL;
+// Clean and sanitize DATABASE_URL (strip accidental wrapping quotes/whitespace)
+function getSanitizedDbUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  const trimmed = raw.trim().replace(/^["']|["']$/g, "");
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function getDatabaseDiagnostics(): {
+  configured: boolean;
+  host: string;
+  database: string;
+} {
+  const url = getSanitizedDbUrl();
+  if (!url) {
+    return { configured: false, host: "Not Set", database: "None" };
+  }
+  try {
+    const parsed = new URL(url);
+    return {
+      configured: true,
+      host: parsed.hostname || "db69616.public.databaseasp.net",
+      database: parsed.pathname ? parsed.pathname.replace(/^\//, "") : "db69616",
+    };
+  } catch {
+    return { configured: true, host: "MonsterASP PostgreSQL", database: "db69616" };
+  }
+}
 
 function getPool(): Pool | null {
+  const connectionString = getSanitizedDbUrl();
   if (!connectionString) {
     return null;
   }
@@ -31,29 +61,54 @@ function getPool(): Pool | null {
   }
 
   // MonsterASP cloud PostgreSQL requires SSL
-  const isMonsterAsp =
-    connectionString.includes("databaseasp.net") || connectionString.includes("sslmode");
-
   const pool = new Pool({
     connectionString,
-    ssl: isMonsterAsp ? { rejectUnauthorized: false } : undefined,
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    ssl: { rejectUnauthorized: false },
+    max: 4, // Optimal for Vercel Serverless container concurrency
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 8000,
   });
 
   pool.on("error", (err) => {
-    console.error("Unexpected error on idle PostgreSQL client:", err.message);
+    console.error("Unexpected error on idle MonsterASP PostgreSQL client:", err.message);
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    global.__postgresPool = pool;
-  }
-
+  global.__postgresPool = pool;
   return pool;
 }
 
-// Local fallback storage (used when DATABASE_URL is not yet configured)
+// Automatic lazy table & index initialization on first database access
+async function ensureDatabaseSchema(pool: Pool): Promise<void> {
+  if (global.__dbInitPromise) {
+    return global.__dbInitPromise;
+  }
+
+  global.__dbInitPromise = (async () => {
+    try {
+      const initSql = `
+        CREATE TABLE IF NOT EXISTS visits (
+          id VARCHAR(36) PRIMARY KEY,
+          visit_id VARCHAR(100) NOT NULL,
+          visited_at_utc TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+          path VARCHAR(500) NOT NULL DEFAULT '/',
+          referrer TEXT DEFAULT 'Direct',
+          user_agent TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+        );
+        CREATE INDEX IF NOT EXISTS idx_visits_visited_at_utc ON visits (visited_at_utc DESC);
+        CREATE INDEX IF NOT EXISTS idx_visits_visit_id ON visits (visit_id);
+      `;
+      await pool.query(initSql);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.warn("Schema initialization notice:", error.message);
+    }
+  })();
+
+  return global.__dbInitPromise;
+}
+
+// Local fallback storage (used when DATABASE_URL is not yet configured in local environment)
 const LOCAL_STORAGE_DIR = path.join(process.cwd(), ".data");
 const LOCAL_STORAGE_FILE = path.join(LOCAL_STORAGE_DIR, "visits.json");
 
@@ -66,18 +121,21 @@ function ensureLocalStorage(): void {
       fs.writeFileSync(LOCAL_STORAGE_FILE, JSON.stringify([]), "utf-8");
     }
   } catch {
-    // Non-blocking filesystem safeguard
+    // Non-blocking filesystem safeguard for read-only environments
   }
 }
 
 function readLocalVisits(): VisitRecord[] {
   try {
     ensureLocalStorage();
-    const data = fs.readFileSync(LOCAL_STORAGE_FILE, "utf-8");
-    return JSON.parse(data) as VisitRecord[];
+    if (fs.existsSync(LOCAL_STORAGE_FILE)) {
+      const data = fs.readFileSync(LOCAL_STORAGE_FILE, "utf-8");
+      return JSON.parse(data) as VisitRecord[];
+    }
   } catch {
-    return [];
+    // Graceful fallback
   }
+  return [];
 }
 
 function writeLocalVisit(record: VisitRecord): void {
@@ -88,12 +146,12 @@ function writeLocalVisit(record: VisitRecord): void {
     const trimmed = existing.slice(0, 5000);
     fs.writeFileSync(LOCAL_STORAGE_FILE, JSON.stringify(trimmed, null, 2), "utf-8");
   } catch (err) {
-    console.error("Local storage error:", err);
+    console.warn("Local storage fallback notice:", err);
   }
 }
 
 /**
- * Inserts a new visit record into MonsterASP PostgreSQL (or local fallback).
+ * Inserts a new visit record into MonsterASP PostgreSQL.
  * Authoritative UTC timestamp is generated on the server.
  */
 export async function recordVisit(data: {
@@ -119,6 +177,8 @@ export async function recordVisit(data: {
 
   if (pool) {
     try {
+      await ensureDatabaseSchema(pool);
+
       const queryText = `
         INSERT INTO visits (id, visit_id, visited_at_utc, path, referrer, user_agent, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -154,11 +214,13 @@ export async function getAnalyticsDashboardData(
   range: "today" | "7d" | "30d" | "all" = "all",
   page = 1,
   pageSize = 25
-): Promise<AnalyticsSummary> {
+): Promise<{ summary: AnalyticsSummary; dbConnected: boolean; errorNotice?: string }> {
   const pool = getPool();
 
   if (pool) {
     try {
+      await ensureDatabaseSchema(pool);
+
       // 1. Overall Summary & Date Metrics (Computed in Asia/Kolkata)
       const summaryQuery = `
         SELECT
@@ -266,7 +328,7 @@ export async function getAnalyticsDashboardData(
 
       const totalPages = Math.max(1, Math.ceil(totalVisitsCount / pageSize));
 
-      return {
+      const summary: AnalyticsSummary = {
         totalVisits: totalVisitsCount,
         todayVisits: Number(s.today_visits) || 0,
         yesterdayVisits: Number(s.yesterday_visits) || 0,
@@ -286,13 +348,15 @@ export async function getAnalyticsDashboardData(
           totalPages,
         },
       };
+
+      return { summary, dbConnected: true };
     } catch (err: unknown) {
       const error = err as Error;
       console.error("MonsterASP PostgreSQL query exception:", error.message);
     }
   }
 
-  // Fallback calculation for local storage
+  // Fallback calculation for local file storage
   const allLocal = readLocalVisits();
   const totalVisitsCount = allLocal.length;
 
@@ -384,7 +448,7 @@ export async function getAnalyticsDashboardData(
   const recentVisits = allLocal.slice(offset, offset + pageSize);
   const totalPages = Math.max(1, Math.ceil(totalVisitsCount / pageSize));
 
-  return {
+  const summary: AnalyticsSummary = {
     totalVisits: totalVisitsCount,
     todayVisits: todayCount,
     yesterdayVisits: yesterdayCount,
@@ -403,5 +467,14 @@ export async function getAnalyticsDashboardData(
       totalVisits: totalVisitsCount,
       totalPages,
     },
+  };
+
+  const isConfigured = Boolean(getSanitizedDbUrl());
+  return {
+    summary,
+    dbConnected: false,
+    errorNotice: isConfigured
+      ? "Unable to connect to MonsterASP PostgreSQL. Retrying..."
+      : "DATABASE_URL environment variable is not configured on Vercel.",
   };
 }
