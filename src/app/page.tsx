@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FLOWER_ASSETS } from "@/config/flowerAssets";
+import RealButterfly from "@/components/RealButterfly";
+import VisitTracker from "@/components/VisitTracker";
 
 interface StarParticle {
   x: number;
@@ -978,7 +980,8 @@ export default function BotanicalMotionBouquet() {
       setStarted(true);
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = e.currentTarget?.getBoundingClientRect();
+    if (!rect) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -1034,6 +1037,9 @@ export default function BotanicalMotionBouquet() {
       suppressHydrationWarning
       className="relative h-[100svh] w-full bg-[#050505] text-[#ECE6E2] overflow-hidden flex flex-col justify-between items-center cursor-pointer select-none"
     >
+      {/* Silent Asynchronous Background Visit Tracker */}
+      <VisitTracker />
+
       {/* Background Star Particle Canvas */}
       <canvas
         ref={canvasRef}
@@ -1385,6 +1391,9 @@ export default function BotanicalMotionBouquet() {
               strokeLinecap="round"
             />
           </motion.g>
+
+          {/* Additive Isolated Real Butterfly Experience */}
+          <RealButterfly fullyBloomed={fullyBloomed} />
         </svg>
       </div>
 

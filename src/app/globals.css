@@ -15,9 +15,8 @@ body {
   padding: 0;
   background-color: #050505;
   color: #ECE6E2;
-  overflow: hidden;
-  height: 100svh;
-  width: 100vw;
+  min-height: 100svh;
+  width: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 

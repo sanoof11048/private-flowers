@@ -55,7 +55,7 @@ export default function RootLayout({
       lang="en"
       className={`${alexBrush.variable} ${cormorant.variable} ${jakarta.variable}`}
     >
-      <body className="bg-[#050505] text-[#ECE6E2] font-sans antialiased overflow-hidden select-none">
+      <body className="bg-[#050505] text-[#ECE6E2] font-sans antialiased select-none min-h-[100svh]">
         {children}
       </body>
     </html>
