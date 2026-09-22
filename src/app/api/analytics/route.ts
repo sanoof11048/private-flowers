@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const error = err as Error;
     console.error("Analytics fetch error:", error.message);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const safeError = error.message.includes("DATABASE_URL")
+      ? "MonsterASP PostgreSQL DATABASE_URL is not configured in Vercel Production Environment Variables."
+      : "Failed to connect to MonsterASP PostgreSQL database. Please verify connection.";
+    return NextResponse.json({ error: safeError }, { status: 500 });
   }
 }

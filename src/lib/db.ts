@@ -77,7 +77,7 @@ function getPool(): Pool | null {
   return pool;
 }
 
-// Automatic lazy table & index initialization on first database access
+// Automatic lazy table & index initialization and local data migration on first database access
 async function ensureDatabaseSchema(pool: Pool): Promise<void> {
   if (global.__dbInitPromise) {
     return global.__dbInitPromise;
@@ -99,6 +99,27 @@ async function ensureDatabaseSchema(pool: Pool): Promise<void> {
         CREATE INDEX IF NOT EXISTS idx_visits_visit_id ON visits (visit_id);
       `;
       await pool.query(initSql);
+
+      // Preserve existing records: if PostgreSQL table is empty and local fallback records exist, migrate them
+      try {
+        const countRes = await pool.query("SELECT COUNT(*)::int AS count FROM visits");
+        const currentCount = Number(countRes.rows[0]?.count || 0);
+        if (currentCount === 0) {
+          const localVisits = readLocalVisits();
+          if (localVisits.length > 0) {
+            for (const v of localVisits) {
+              await pool.query(
+                `INSERT INTO visits (id, visit_id, visited_at_utc, path, referrer, user_agent, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (id) DO NOTHING`,
+                [v.id, v.visit_id, v.visited_at_utc, v.path, v.referrer, v.user_agent, v.created_at]
+              );
+            }
+          }
+        }
+      } catch {
+        // Non-blocking sync check
+      }
     } catch (err: unknown) {
       const error = err as Error;
       console.warn("Schema initialization notice:", error.message);
@@ -353,10 +374,18 @@ export async function getAnalyticsDashboardData(
     } catch (err: unknown) {
       const error = err as Error;
       console.error("MonsterASP PostgreSQL query exception:", error.message);
+      if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+        throw new Error(`MonsterASP PostgreSQL query failed: ${error.message}`);
+      }
     }
   }
 
-  // Fallback calculation for local file storage
+  // If in production environment and pool is null/failed, do not fake zero counts
+  if ((process.env.NODE_ENV === "production" || process.env.VERCEL) && !getSanitizedDbUrl()) {
+    throw new Error("DATABASE_URL environment variable is not configured in Vercel Production Settings.");
+  }
+
+  // Fallback calculation for local file storage in development
   const allLocal = readLocalVisits();
   const totalVisitsCount = allLocal.length;
 

@@ -97,6 +97,15 @@ export default function PrivateAnalyticsDashboard() {
       }
 
       const result = await res.json();
+      if (!res.ok || !result.success) {
+        setErrorMsg(result.error || "Unable to connect to MonsterASP PostgreSQL database.");
+        if (result.dbStatus) {
+          setDbStatus(result.dbStatus);
+        }
+        setLoading(false);
+        return;
+      }
+
       if (result.success && result.data) {
         setData(result.data);
         if (result.dbStatus) {
