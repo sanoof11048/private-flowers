@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { FLOWER_ASSETS } from "@/config/flowerAssets";
 import RealButterfly from "@/components/RealButterfly";
 import VisitTracker from "@/components/VisitTracker";
+import GiftInteraction from "@/components/GiftInteraction";
 
 interface StarParticle {
   x: number;
@@ -1397,8 +1398,10 @@ export default function BotanicalMotionBouquet() {
         <RealButterfly fullyBloomed={fullyBloomed} />
       </div>
 
-      {/* Bottom Minimal Frame Space */}
-      <footer className="relative z-30 pb-3 text-center" />
+      {/* Bottom Minimal Frame Space & Playful Best-Friend Gift */}
+      <footer className="relative z-30 pb-6 text-center">
+        <GiftInteraction visible={fullyBloomed} />
+      </footer>
     </main>
   );
 }
