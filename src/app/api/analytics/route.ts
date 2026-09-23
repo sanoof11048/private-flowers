@@ -4,13 +4,20 @@ import { getAnalyticsDashboardData, getDatabaseDiagnostics } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "lena2026";
-
 export async function POST(req: NextRequest) {
   try {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.error("ADMIN_PASSWORD environment variable is not configured on server.");
+      return NextResponse.json(
+        { error: "ADMIN_PASSWORD environment variable is not configured in Vercel Production Settings." },
+        { status: 500 }
+      );
+    }
+
     const { password, range, page, pageSize } = await req.json();
 
-    if (!password || password !== ADMIN_PASSWORD) {
+    if (!password || password !== adminPassword) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
