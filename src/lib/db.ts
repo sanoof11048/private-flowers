@@ -51,8 +51,8 @@ export function getDatabaseDiagnostics(): {
 }
 
 function getPool(): Pool | null {
-  const connectionString = getSanitizedDbUrl();
-  if (!connectionString) {
+  const rawUrl = getSanitizedDbUrl();
+  if (!rawUrl) {
     return null;
   }
 
@@ -60,21 +60,33 @@ function getPool(): Pool | null {
     return global.__postgresPool;
   }
 
-  // MonsterASP cloud PostgreSQL requires SSL
-  const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-    max: 4, // Optimal for Vercel Serverless container concurrency
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 8000,
-  });
+  try {
+    // Strip sslmode from query parameters so it does not conflict with ssl options in node-postgres
+    let cleanUrl = rawUrl;
+    if (cleanUrl.includes("sslmode=")) {
+      cleanUrl = cleanUrl.replace(/([?&])sslmode=[^&]+(&|$)/, "$1").replace(/[?&]$/, "");
+    }
 
-  pool.on("error", (err) => {
-    console.error("Unexpected error on idle MonsterASP PostgreSQL client:", err.message);
-  });
+    // MonsterASP cloud PostgreSQL requires SSL (rejectUnauthorized: false for self-signed/cloud certs)
+    const pool = new Pool({
+      connectionString: cleanUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 4, // Optimal for Vercel Serverless container concurrency
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000,
+    });
 
-  global.__postgresPool = pool;
-  return pool;
+    pool.on("error", (err) => {
+      console.error("Unexpected error on idle MonsterASP PostgreSQL client:", err.message);
+    });
+
+    global.__postgresPool = pool;
+    return pool;
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error("Failed to construct PostgreSQL Pool:", error.message);
+    return null;
+  }
 }
 
 // Authoritative historical records recorded locally to be migrated on initial PostgreSQL connect
