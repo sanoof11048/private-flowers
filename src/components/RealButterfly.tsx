@@ -281,7 +281,6 @@ function generateProceduralFlight(
 export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
   const [active, setActive] = useState(false);
   const [isLandedState, setIsLandedState] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // Direct DOM Element Refs (Eliminates 60-120 React re-renders/sec during flight)
@@ -547,21 +546,15 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
     };
   }, [active, takeFlightToNewFlower, applyDOMTransforms]);
 
-  // Tiny Best-Friend Interaction Handler (Playful reaction + "Hey! 😂" message)
   const handleButterflyTap = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     if (!active) return;
 
     setHasInteracted(true);
-    setShowMessage(true);
 
     if (messageTimeoutRef.current) {
       clearTimeout(messageTimeoutRef.current);
     }
-    messageTimeoutRef.current = setTimeout(() => {
-      setShowMessage(false);
-    }, 1800);
-
     // Butterfly startles and takes off in a playful unexpected direction
     takeFlightToNewFlower(true);
   };
@@ -670,18 +663,6 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
             onTouchStart={handleButterflyTap}
             title="Tap the butterfly 🦋"
           />
-
-          {/* Tiny Floating Playful Best-Friend Reaction Badge */}
-          {showMessage && (
-            <div
-              className="absolute -top-7 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#121217]/95 border border-rose-400/40 text-rose-200 text-[11px] font-medium rounded-full shadow-lg pointer-events-none whitespace-nowrap animate-bounce"
-              style={{
-                filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))",
-              }}
-            >
-              Hey! 😂
-            </div>
-          )}
         </div>
       </div>
 

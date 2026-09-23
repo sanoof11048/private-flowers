@@ -4,8 +4,12 @@ export interface GiftItem {
   badge: string;
   title: string;
   subtitle: string;
-  type: "product" | "image" | "gif" | "video" | "message";
+  type: "product" | "image" | "gif" | "video" | "message" | "tenor";
   src?: string;
+  postId?: string;
+  aspectRatio?: string;
+  tenorUrl?: string;
+  tenorLinkText?: string;
   punchline: string;
   subtext?: string;
   secretSteps?: string[];
@@ -22,6 +26,20 @@ export const GIFTS_CONFIG: GiftItem[] = [
     src: "/gifts/kinder-joy.png",
     punchline: "Okay fine... this one is actually edible 😂",
     subtext: "Don't say I never give you anything.",
+  },
+  {
+    id: "gift-cat",
+    icon: "🐱",
+    badge: "Cat Attack",
+    title: "Cat Attack",
+    subtitle: "Okay... this one is for you 😂",
+    type: "tenor",
+    postId: "12553196888763818675",
+    aspectRatio: "1",
+    tenorUrl: "https://tenor.com/view/cat-cute-neko-kitty-kiss-gif-12553196888763818675",
+    tenorLinkText: "Cat Cute Sticker",
+    punchline: "Don't ask questions. 😂",
+    subtext: "Peak best-friend delivery.",
   },
   {
     id: "gift-risk",
@@ -78,7 +96,7 @@ export const GIFTS_CONFIG: GiftItem[] = [
     secretSteps: [
       "Okay... you got everything.",
       "Except one thing.",
-      "You owe me a treat now. 😂🍫",
+      "😂",
     ],
   },
 ];

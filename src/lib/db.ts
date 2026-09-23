@@ -9,8 +9,9 @@ import {
   AnalyticsSummary,
   parseDeviceFromUA,
 } from "@/types/analytics";
+import { ActiveGiftRecord, SetGiftInput, GiftType } from "@/types/gift";
 
-export type { VisitRecord, DailyTrend, TrafficSource, DeviceStats, AnalyticsSummary };
+export type { VisitRecord, DailyTrend, TrafficSource, DeviceStats, AnalyticsSummary, ActiveGiftRecord, SetGiftInput, GiftType };
 export { parseDeviceFromUA };
 
 // Global declaration to maintain single pool across Next.js hot reloads & serverless container reuse
@@ -185,6 +186,21 @@ async function ensureDatabaseSchema(pool: Pool): Promise<void> {
         );
         CREATE INDEX IF NOT EXISTS idx_visits_visited_at_utc ON visits (visited_at_utc DESC);
         CREATE INDEX IF NOT EXISTS idx_visits_visit_id ON visits (visit_id);
+
+        CREATE TABLE IF NOT EXISTS gift_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          type VARCHAR(50) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          subtitle VARCHAR(255),
+          media_url TEXT,
+          tenor_post_id VARCHAR(100),
+          message TEXT,
+          punchline TEXT,
+          is_active BOOLEAN NOT NULL DEFAULT false,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+        );
+        CREATE INDEX IF NOT EXISTS idx_gift_settings_is_active ON gift_settings (is_active);
       `;
       await pool.query(initSql);
 
@@ -597,3 +613,182 @@ export async function getAnalyticsDashboardData(
       : "DATABASE_URL environment variable is not configured on Vercel.",
   };
 }
+
+// =========================================================================
+// GIFT SETTINGS (POSTGRESQL + LOCAL PERSISTENCE FALLBACK)
+// =========================================================================
+
+const LOCAL_GIFT_STORAGE_FILE = path.join(LOCAL_STORAGE_DIR, "gift_settings.json");
+
+function readLocalGifts(): ActiveGiftRecord[] {
+  try {
+    ensureLocalStorage();
+    if (fs.existsSync(LOCAL_GIFT_STORAGE_FILE)) {
+      const raw = fs.readFileSync(LOCAL_GIFT_STORAGE_FILE, "utf-8");
+      const parsed = JSON.parse(raw) as ActiveGiftRecord[];
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return [];
+}
+
+function writeLocalGifts(gifts: ActiveGiftRecord[]): void {
+  try {
+    ensureLocalStorage();
+    fs.writeFileSync(LOCAL_GIFT_STORAGE_FILE, JSON.stringify(gifts, null, 2), "utf-8");
+  } catch {
+    // Non-blocking fallback
+  }
+}
+
+/**
+ * Fetch the currently active gift record from PostgreSQL or fallback
+ */
+export async function getActiveGiftRecord(): Promise<ActiveGiftRecord | null> {
+  const pool = getPool();
+  if (pool) {
+    try {
+      await ensureDatabaseSchema(pool);
+      const res = await pool.query(
+        `SELECT id, type, title, subtitle, media_url, tenor_post_id, message, punchline, is_active, created_at, updated_at
+         FROM gift_settings
+         WHERE is_active = true
+         ORDER BY updated_at DESC
+         LIMIT 1`
+      );
+      if (res.rows.length > 0) {
+        return res.rows[0] as ActiveGiftRecord;
+      }
+      return null;
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Error querying active gift from PostgreSQL:", error.message);
+    }
+  }
+
+  // Fallback to local storage
+  const localGifts = readLocalGifts();
+  const active = localGifts.find((g) => g.is_active);
+  return active || null;
+}
+
+/**
+ * Set a new active gift in PostgreSQL, ensuring strictly ONE active gift
+ */
+export async function setActiveGiftRecord(input: SetGiftInput): Promise<ActiveGiftRecord> {
+  const id = crypto.randomUUID();
+  const nowUtc = new Date().toISOString();
+
+  const newRecord: ActiveGiftRecord = {
+    id,
+    type: input.type,
+    title: input.title.trim(),
+    subtitle: input.subtitle ? input.subtitle.trim() : null,
+    media_url: input.media_url ? input.media_url.trim() : null,
+    tenor_post_id: input.tenor_post_id ? input.tenor_post_id.trim() : null,
+    message: input.message ? input.message.trim() : null,
+    punchline: input.punchline ? input.punchline.trim() : null,
+    is_active: true,
+    created_at: nowUtc,
+    updated_at: nowUtc,
+  };
+
+  const pool = getPool();
+  if (pool) {
+    try {
+      await ensureDatabaseSchema(pool);
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        // Deactivate all previous gifts
+        await client.query("UPDATE gift_settings SET is_active = false, updated_at = now() WHERE is_active = true");
+        // Insert new active gift
+        const insertRes = await client.query(
+          `INSERT INTO gift_settings (
+            id, type, title, subtitle, media_url, tenor_post_id, message, punchline, is_active, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10)
+          RETURNING id, type, title, subtitle, media_url, tenor_post_id, message, punchline, is_active, created_at, updated_at`,
+          [
+            newRecord.id,
+            newRecord.type,
+            newRecord.title,
+            newRecord.subtitle,
+            newRecord.media_url,
+            newRecord.tenor_post_id,
+            newRecord.message,
+            newRecord.punchline,
+            newRecord.created_at,
+            newRecord.updated_at,
+          ]
+        );
+        await client.query("COMMIT");
+        if (insertRes.rows.length > 0) {
+          return insertRes.rows[0] as ActiveGiftRecord;
+        }
+      } catch (txnErr) {
+        await client.query("ROLLBACK");
+        throw txnErr;
+      } finally {
+        client.release();
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Error setting active gift in PostgreSQL:", error.message);
+    }
+  }
+
+  // Fallback to local storage
+  const localGifts = readLocalGifts();
+  const updatedList = localGifts.map((g) => ({ ...g, is_active: false }));
+  updatedList.unshift(newRecord);
+  writeLocalGifts(updatedList);
+  return newRecord;
+}
+
+/**
+ * Clear/deactivate all active gifts
+ */
+export async function clearActiveGiftRecord(): Promise<void> {
+  const pool = getPool();
+  if (pool) {
+    try {
+      await ensureDatabaseSchema(pool);
+      await pool.query("UPDATE gift_settings SET is_active = false, updated_at = now() WHERE is_active = true");
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Error clearing active gift in PostgreSQL:", error.message);
+    }
+  }
+
+  // Update local storage
+  const localGifts = readLocalGifts();
+  const cleared = localGifts.map((g) => ({ ...g, is_active: false }));
+  writeLocalGifts(cleared);
+}
+
+/**
+ * Get all historical configured gifts for the admin dashboard
+ */
+export async function getAllGiftRecords(): Promise<ActiveGiftRecord[]> {
+  const pool = getPool();
+  if (pool) {
+    try {
+      await ensureDatabaseSchema(pool);
+      const res = await pool.query(
+        `SELECT id, type, title, subtitle, media_url, tenor_post_id, message, punchline, is_active, created_at, updated_at
+         FROM gift_settings
+         ORDER BY updated_at DESC
+         LIMIT 25`
+      );
+      return res.rows as ActiveGiftRecord[];
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("Error fetching all gifts from PostgreSQL:", error.message);
+    }
+  }
+
+  return readLocalGifts();
+}
+

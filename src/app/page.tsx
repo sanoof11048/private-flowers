@@ -1398,10 +1398,8 @@ export default function BotanicalMotionBouquet() {
         <RealButterfly fullyBloomed={fullyBloomed} />
       </div>
 
-      {/* Bottom Minimal Frame Space & Playful Best-Friend Gift */}
-      <footer className="relative z-30 pb-6 text-center">
-        <GiftInteraction visible={fullyBloomed} />
-      </footer>
+      {/* Fixed Viewport Gift Button & Overlay Modal */}
+      <GiftInteraction />
     </main>
   );
 }
