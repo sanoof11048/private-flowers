@@ -9,15 +9,13 @@ interface RealButterflyProps {
 interface FlowerPerch {
   id: string;
   name: string;
-  // Normalized stage coordinates (0 to 1 range across bouquet bounding box)
-  // SVG coordinate (x / 520, y / 620)
+  // Normalized stage coordinates (0 to 1 range across bouquet SVG viewBox 0 0 520 620)
   normX: number;
   normY: number;
   preferredAngle: number; // Resting rotation angle (degrees)
 }
 
 // Hand-calibrated flower perches mapped from florist arrangement
-// SVG ViewBox is (0 0 520 620)
 const FLOWER_PERCHES: FlowerPerch[] = [
   { id: "centerpiece-blush-rose", name: "Blush Rose Centerpiece", normX: 260 / 520, normY: 310 / 620, preferredAngle: 3 },
   { id: "tall-white-peony", name: "Tall White Center Rose", normX: 282 / 520, normY: 172 / 620, preferredAngle: -8 },
@@ -34,10 +32,88 @@ const FLOWER_PERCHES: FlowerPerch[] = [
 ];
 
 interface Waypoint {
-  normX: number;
-  normY: number;
+  x: number;
+  y: number;
   time: number; // accumulated time in seconds
   wingState: "flap" | "glide" | "hover" | "settle";
+}
+
+interface ViewportBounds {
+  width: number;
+  height: number;
+  safeLeft: number;
+  safeRight: number;
+  safeTop: number;
+  safeBottom: number;
+  isMobile: boolean;
+}
+
+// Safely computes real visual flight bounds accounting for mobile toolbars & safe areas
+function getViewportBounds(): ViewportBounds {
+  let width = 390;
+  let height = 844;
+  let offsetLeft = 0;
+  let offsetTop = 0;
+
+  if (typeof window !== "undefined") {
+    if (window.visualViewport) {
+      width = window.visualViewport.width;
+      height = window.visualViewport.height;
+      offsetLeft = window.visualViewport.offsetLeft;
+      offsetTop = window.visualViewport.offsetTop;
+    } else {
+      width = window.innerWidth || document.documentElement.clientWidth || 390;
+      height = window.innerHeight || document.documentElement.clientHeight || 844;
+    }
+  }
+
+  const isMobile = width < 640;
+  // Margins tailored to prevent clipping against dynamic toolbars / status bars
+  const marginX = isMobile ? Math.max(18, width * 0.05) : Math.max(32, width * 0.04);
+  const marginTop = isMobile ? Math.max(28, height * 0.06) : Math.max(40, height * 0.05);
+  const marginBottom = isMobile ? Math.max(36, height * 0.08) : Math.max(44, height * 0.06);
+
+  return {
+    width,
+    height,
+    safeLeft: offsetLeft + marginX,
+    safeRight: offsetLeft + width - marginX,
+    safeTop: offsetTop + marginTop,
+    safeBottom: offsetTop + height - marginBottom,
+    isMobile,
+  };
+}
+
+// Dynamically calculates the exact screen pixel position of a flower from the bouquet DOM
+function getFlowerScreenPosition(
+  perch: FlowerPerch,
+  bounds: ViewportBounds
+): { x: number; y: number; isVisible: boolean } {
+  if (typeof document !== "undefined") {
+    const svg = document.querySelector('svg[viewBox="0 0 520 620"]') as SVGSVGElement | null;
+    if (svg) {
+      const rect = svg.getBoundingClientRect();
+      const x = rect.left + perch.normX * rect.width;
+      const y = rect.top + perch.normY * rect.height;
+
+      const isVisible =
+        x >= bounds.safeLeft &&
+        x <= bounds.safeRight &&
+        y >= bounds.safeTop &&
+        y <= bounds.safeBottom;
+
+      return {
+        x: Math.max(bounds.safeLeft, Math.min(bounds.safeRight, x)),
+        y: Math.max(bounds.safeTop, Math.min(bounds.safeBottom, y)),
+        isVisible,
+      };
+    }
+  }
+
+  // Fallback to center-screen bouquet area
+  const fallbackX = bounds.safeLeft + (bounds.safeRight - bounds.safeLeft) * perch.normX;
+  const fallbackY = bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.3 + perch.normY * 0.5);
+  return { x: fallbackX, y: fallbackY, isVisible: true };
 }
 
 // Catmull-Rom spline interpolation
@@ -53,16 +129,16 @@ function sampleSpline(points: Waypoint[], currentTime: number) {
   const n = points.length;
   if (currentTime <= points[0].time) {
     return {
-      normX: points[0].normX,
-      normY: points[0].normY,
+      x: points[0].x,
+      y: points[0].y,
       angle: 0,
       wingState: points[0].wingState,
     };
   }
   if (currentTime >= points[n - 1].time) {
     return {
-      normX: points[n - 1].normX,
-      normY: points[n - 1].normY,
+      x: points[n - 1].x,
+      y: points[n - 1].y,
       angle: 0,
       wingState: points[n - 1].wingState,
     };
@@ -82,122 +158,121 @@ function sampleSpline(points: Waypoint[], currentTime: number) {
   const t = Math.min(Math.max((currentTime - p1.time) / segDuration, 0), 1);
   const easedT = t * t * (3 - 2 * t);
 
-  const normX = catmullRom(p0.normX, p1.normX, p2.normX, p3.normX, easedT);
-  const normY = catmullRom(p0.normY, p1.normY, p2.normY, p3.normY, easedT);
+  const x = catmullRom(p0.x, p1.x, p2.x, p3.x, easedT);
+  const y = catmullRom(p0.y, p1.y, p2.y, p3.y, easedT);
 
   // Lookahead derivative for natural flight tangent alignment & banking
   const dt = 0.035;
   const nextT = Math.min(easedT + dt, 1);
-  const nextX = catmullRom(p0.normX, p1.normX, p2.normX, p3.normX, nextT);
-  const nextY = catmullRom(p0.normY, p1.normY, p2.normY, p3.normY, nextT);
+  const nextX = catmullRom(p0.x, p1.x, p2.x, p3.x, nextT);
+  const nextY = catmullRom(p0.y, p1.y, p2.y, p3.y, nextT);
 
-  const dx = nextX - normX;
-  const dy = nextY - normY;
+  const dx = nextX - x;
+  const dy = nextY - y;
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
 
-  return { normX, normY, angle, wingState: p1.wingState };
+  return { x, y, angle, wingState: p1.wingState };
 }
 
 // Procedural organic flight generator with strict mobile viewport safety
 function generateProceduralFlight(
-  startPos: { normX: number; normY: number },
-  targetPerch: FlowerPerch,
+  startPos: { x: number; y: number },
+  targetPerchPos: { x: number; y: number },
+  bounds: ViewportBounds,
   isInitialEntry = false,
   isPlayfulReaction = false
 ): Waypoint[] {
   const waypoints: Waypoint[] = [];
   let t = 0;
 
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-  const minX = isMobile ? 0.12 : 0.06;
-  const maxX = isMobile ? 0.88 : 0.94;
-  const minY = isMobile ? 0.08 : 0.06;
-  const maxY = isMobile ? 0.70 : 0.85;
+  const clampX = (val: number) => Math.max(bounds.safeLeft, Math.min(bounds.safeRight, val));
+  const clampY = (val: number) => Math.max(bounds.safeTop, Math.min(bounds.safeBottom, val));
 
-  const clampX = (val: number) => Math.max(minX, Math.min(maxX, val));
-  const clampY = (val: number) => Math.max(minY, Math.min(maxY, val));
+  const targetX = clampX(targetPerchPos.x);
+  const targetY = clampY(targetPerchPos.y);
 
   if (isPlayfulReaction) {
-    // Playful quick best-friend reaction loop: startles and loops away, then lands
-    waypoints.push({ normX: clampX(startPos.normX), normY: clampY(startPos.normY), time: 0, wingState: "flap" });
+    // Quick surprised dart upward and away, joyful loop arc, then descent onto target flower
+    waypoints.push({ x: clampX(startPos.x), y: clampY(startPos.y), time: 0, wingState: "flap" });
 
-    // Quick surprised dart upward-left or upward-right
-    const dartDirection = Math.random() > 0.5 ? 1 : -1;
-    const dartX = clampX(startPos.normX + dartDirection * (isMobile ? 0.18 : 0.28));
-    const dartY = clampY(startPos.normY - (isMobile ? 0.16 : 0.24));
-    t += 0.45;
-    waypoints.push({ normX: dartX, normY: dartY, time: t, wingState: "flap" });
+    const dartDir = Math.random() > 0.5 ? 1 : -1;
+    const dartDistX = bounds.isMobile ? bounds.width * 0.28 : bounds.width * 0.25;
+    const dartDistY = bounds.isMobile ? bounds.height * 0.22 : bounds.height * 0.26;
 
-    // Playful loop arc across upper canopy
-    const loopX = clampX(0.5 - dartDirection * (isMobile ? 0.15 : 0.22));
-    const loopY = clampY(0.12 + Math.random() * 0.08);
-    t += 0.65;
-    waypoints.push({ normX: loopX, normY: loopY, time: t, wingState: "glide" });
+    const dartX = clampX(startPos.x + dartDir * dartDistX);
+    const dartY = clampY(startPos.y - dartDistY);
+    t += 0.5;
+    waypoints.push({ x: dartX, y: dartY, time: t, wingState: "flap" });
+
+    // Wide high canopy loop
+    const loopX = clampX(bounds.safeLeft + (bounds.safeRight - bounds.safeLeft) * (0.5 - dartDir * 0.25));
+    const loopY = clampY(bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.12 + Math.random() * 0.1));
+    t += 0.7;
+    waypoints.push({ x: loopX, y: loopY, time: t, wingState: "glide" });
 
     // Hover above target flower
-    const hoverX = clampX(targetPerch.normX + (Math.random() - 0.5) * 0.06);
-    const hoverY = clampY(targetPerch.normY - 0.07);
-    t += 0.75;
-    waypoints.push({ normX: hoverX, normY: hoverY, time: t, wingState: "hover" });
+    const hoverX = clampX(targetX + (Math.random() - 0.5) * (bounds.isMobile ? 24 : 40));
+    const hoverY = clampY(targetY - (bounds.isMobile ? 32 : 45));
+    t += 0.8;
+    waypoints.push({ x: hoverX, y: hoverY, time: t, wingState: "hover" });
 
     // Touchdown
-    t += 0.65;
-    waypoints.push({ normX: targetPerch.normX, normY: targetPerch.normY, time: t, wingState: "settle" });
+    t += 0.7;
+    waypoints.push({ x: targetX, y: targetY, time: t, wingState: "settle" });
   } else if (isInitialEntry) {
-    // Majestic entrance
-    const startX = isMobile
-      ? (Math.random() > 0.5 ? 0.92 : 0.08)
-      : (Math.random() > 0.5 ? 1.05 : -0.05);
-    const startY = 0.06 + Math.random() * 0.08;
-    waypoints.push({ normX: startX, normY: startY, time: 0, wingState: "flap" });
+    // Majestic entrance from screen edge into bouquet
+    const fromRight = Math.random() > 0.5;
+    const startX = fromRight ? bounds.safeRight : bounds.safeLeft;
+    const startY = bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.05 + Math.random() * 0.1);
+    waypoints.push({ x: startX, y: startY, time: 0, wingState: "flap" });
 
-    // Mid-air exploration curve within safe stage area
-    const mid1X = startX > 0.5 ? (isMobile ? 0.78 : 0.82) : (isMobile ? 0.22 : 0.18);
-    const mid1Y = 0.16 + Math.random() * 0.08;
+    // Scenic mid-air exploration curve
+    const mid1X = clampX(bounds.safeLeft + (bounds.safeRight - bounds.safeLeft) * (fromRight ? 0.72 : 0.28));
+    const mid1Y = bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.18 + Math.random() * 0.12);
     t += 1.3;
-    waypoints.push({ normX: clampX(mid1X), normY: clampY(mid1Y), time: t, wingState: "flap" });
+    waypoints.push({ x: mid1X, y: mid1Y, time: t, wingState: "flap" });
 
-    // Glide across top floral canopy
-    const canopyX = 0.5 + (Math.random() - 0.5) * (isMobile ? 0.16 : 0.22);
-    const canopyY = 0.18 + Math.random() * 0.06;
+    // Glide across bouquet canopy
+    const canopyX = clampX(bounds.safeLeft + (bounds.safeRight - bounds.safeLeft) * (0.5 + (Math.random() - 0.5) * 0.3));
+    const canopyY = bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.2 + Math.random() * 0.1);
     t += 1.2;
-    waypoints.push({ normX: clampX(canopyX), normY: clampY(canopyY), time: t, wingState: "glide" });
+    waypoints.push({ x: canopyX, y: canopyY, time: t, wingState: "glide" });
 
-    // Hover above target flower
-    const swoopX = targetPerch.normX + (Math.random() - 0.5) * 0.08;
-    const swoopY = targetPerch.normY - 0.08;
+    // Hover above centerpiece
+    const swoopX = clampX(targetX + (Math.random() - 0.5) * 30);
+    const swoopY = clampY(targetY - 35);
     t += 1.2;
-    waypoints.push({ normX: clampX(swoopX), normY: clampY(swoopY), time: t, wingState: "hover" });
-
-    // Decelerated touchdown
-    t += 1.0;
-    waypoints.push({ normX: targetPerch.normX, normY: targetPerch.normY, time: t, wingState: "settle" });
-  } else {
-    // Liftoff & flower-to-flower flight
-    waypoints.push({ normX: clampX(startPos.normX), normY: clampY(startPos.normY), time: 0, wingState: "flap" });
-
-    // Quick natural liftoff rise
-    const liftoffX = startPos.normX + (Math.random() - 0.5) * (isMobile ? 0.05 : 0.08);
-    const liftoffY = startPos.normY - (0.06 + Math.random() * 0.04);
-    t += 0.65 + Math.random() * 0.2;
-    waypoints.push({ normX: clampX(liftoffX), normY: clampY(liftoffY), time: t, wingState: "flap" });
-
-    // 1 scenic dynamic intermediate arc point (kept short & controlled for mobile)
-    const midX = 0.5 + (Math.random() - 0.5) * (isMobile ? 0.38 : 0.52);
-    const midY = 0.18 + Math.random() * (isMobile ? 0.20 : 0.26);
-    const wingState = Math.random() > 0.5 ? "glide" : "flap";
-    t += 1.1 + Math.random() * 0.5;
-    waypoints.push({ normX: clampX(midX), normY: clampY(midY), time: t, wingState });
-
-    // Approach above target flower
-    const approachX = targetPerch.normX + (Math.random() - 0.5) * 0.05;
-    const approachY = targetPerch.normY - 0.06;
-    t += 1.0 + Math.random() * 0.25;
-    waypoints.push({ normX: clampX(approachX), normY: clampY(approachY), time: t, wingState: "hover" });
+    waypoints.push({ x: swoopX, y: swoopY, time: t, wingState: "hover" });
 
     // Touchdown
+    t += 1.0;
+    waypoints.push({ x: targetX, y: targetY, time: t, wingState: "settle" });
+  } else {
+    // Organic liftoff and flower-to-flower flight
+    waypoints.push({ x: clampX(startPos.x), y: clampY(startPos.y), time: 0, wingState: "flap" });
+
+    // Natural liftoff rise
+    const liftoffX = clampX(startPos.x + (Math.random() - 0.5) * 40);
+    const liftoffY = clampY(startPos.y - (30 + Math.random() * 30));
+    t += 0.7;
+    waypoints.push({ x: liftoffX, y: liftoffY, time: t, wingState: "flap" });
+
+    // Dynamic sweeping curve across screen / floral arrangement
+    const midX = clampX(bounds.safeLeft + (bounds.safeRight - bounds.safeLeft) * (0.2 + Math.random() * 0.6));
+    const midY = clampY(bounds.safeTop + (bounds.safeBottom - bounds.safeTop) * (0.15 + Math.random() * 0.35));
+    const wingState = Math.random() > 0.45 ? "glide" : "flap";
+    t += 1.2 + Math.random() * 0.4;
+    waypoints.push({ x: midX, y: midY, time: t, wingState });
+
+    // Approach and hover above destination flower
+    const approachX = clampX(targetX + (Math.random() - 0.5) * 24);
+    const approachY = clampY(targetY - 28);
+    t += 1.0 + Math.random() * 0.3;
+    waypoints.push({ x: approachX, y: approachY, time: t, wingState: "hover" });
+
+    // Decelerated gentle touchdown
     t += 0.85 + Math.random() * 0.25;
-    waypoints.push({ normX: targetPerch.normX, normY: targetPerch.normY, time: t, wingState: "settle" });
+    waypoints.push({ x: targetX, y: targetY, time: t, wingState: "settle" });
   }
 
   return waypoints;
@@ -221,33 +296,35 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
   const restTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isLandedRef = useRef(false);
-  const currentCoordsRef = useRef({ normX: 0.85, normY: 0.1, angle: -25 });
+  const currentCoordsRef = useRef({ x: 200, y: 150, angle: -20 });
   const currentPerchIndexRef = useRef(0);
   const isPageVisibleRef = useRef(true);
   const hasInitializedRef = useRef(false);
 
-  // Directly apply GPU-accelerated transforms to DOM elements
-  const applyDOMTransforms = useCallback((normX: number, normY: number, angle: number, wingAngle: number, shadowOpacity: number) => {
-    if (butterflyContainerRef.current) {
-      // Use percentage translate3d for pixel-perfect responsiveness across all viewport sizes
-      butterflyContainerRef.current.style.transform = `translate3d(${normX * 100}%, ${normY * 100}%, 0) translate3d(-50%, -50%, 0) rotate(${angle.toFixed(1)}deg)`;
-      (butterflyContainerRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `translate3d(${normX * 100}%, ${normY * 100}%, 0) translate3d(-50%, -50%, 0) rotate(${angle.toFixed(1)}deg)`;
-    }
-    if (leftWingRef.current) {
-      leftWingRef.current.style.transform = `rotateY(${wingAngle.toFixed(1)}deg)`;
-      (leftWingRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `rotateY(${wingAngle.toFixed(1)}deg)`;
-    }
-    if (rightWingRef.current) {
-      rightWingRef.current.style.transform = `rotateY(-${wingAngle.toFixed(1)}deg)`;
-      (rightWingRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `rotateY(-${wingAngle.toFixed(1)}deg)`;
-    }
-    if (shadowRef.current) {
-      shadowRef.current.style.opacity = shadowOpacity.toFixed(2);
-      const shadowScale = Math.max(0.3, 1 - wingAngle / 90);
-      shadowRef.current.style.transform = `scale(${shadowScale.toFixed(2)}, 0.6) translate3d(0, 8px, 0)`;
-      (shadowRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `scale(${shadowScale.toFixed(2)}, 0.6) translate3d(0, 8px, 0)`;
-    }
-  }, []);
+  // Directly apply GPU-accelerated transforms in exact screen pixels
+  const applyDOMTransforms = useCallback(
+    (x: number, y: number, angle: number, wingAngle: number, shadowOpacity: number) => {
+      if (butterflyContainerRef.current) {
+        butterflyContainerRef.current.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate3d(-50%, -50%, 0) rotate(${angle.toFixed(1)}deg)`;
+        (butterflyContainerRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate3d(-50%, -50%, 0) rotate(${angle.toFixed(1)}deg)`;
+      }
+      if (leftWingRef.current) {
+        leftWingRef.current.style.transform = `rotateY(${wingAngle.toFixed(1)}deg)`;
+        (leftWingRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `rotateY(${wingAngle.toFixed(1)}deg)`;
+      }
+      if (rightWingRef.current) {
+        rightWingRef.current.style.transform = `rotateY(-${wingAngle.toFixed(1)}deg)`;
+        (rightWingRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `rotateY(-${wingAngle.toFixed(1)}deg)`;
+      }
+      if (shadowRef.current) {
+        shadowRef.current.style.opacity = shadowOpacity.toFixed(2);
+        const shadowScale = Math.max(0.3, 1 - wingAngle / 90);
+        shadowRef.current.style.transform = `scale(${shadowScale.toFixed(2)}, 0.6) translate3d(0, 8px, 0)`;
+        (shadowRef.current.style as CSSStyleDeclaration & { webkitTransform: string }).webkitTransform = `scale(${shadowScale.toFixed(2)}, 0.6) translate3d(0, 8px, 0)`;
+      }
+    },
+    []
+  );
 
   // Initiate flight to a new flower (autonomous or triggered)
   const takeFlightToNewFlower = useCallback((isPlayful = false) => {
@@ -256,15 +333,40 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
       restTimeoutRef.current = null;
     }
 
-    let nextIndex = Math.floor(Math.random() * FLOWER_PERCHES.length);
-    if (nextIndex === currentPerchIndexRef.current) {
-      nextIndex = (nextIndex + 1 + Math.floor(Math.random() * (FLOWER_PERCHES.length - 1))) % FLOWER_PERCHES.length;
+    const bounds = getViewportBounds();
+
+    // Find all flowers currently visible inside the viewport bounds
+    const visiblePerchCandidates: { perch: FlowerPerch; index: number; screenPos: { x: number; y: number } }[] = [];
+    FLOWER_PERCHES.forEach((perch, idx) => {
+      const pos = getFlowerScreenPosition(perch, bounds);
+      if (pos.isVisible) {
+        visiblePerchCandidates.push({ perch, index: idx, screenPos: pos });
+      }
+    });
+
+    let chosenCandidate = visiblePerchCandidates[0];
+    if (visiblePerchCandidates.length > 1) {
+      const otherCandidates = visiblePerchCandidates.filter((c) => c.index !== currentPerchIndexRef.current);
+      const pool = otherCandidates.length > 0 ? otherCandidates : visiblePerchCandidates;
+      chosenCandidate = pool[Math.floor(Math.random() * pool.length)];
+    } else if (!chosenCandidate) {
+      // If no flower detected inside bounds, fallback to centerpiece
+      const firstPerch = FLOWER_PERCHES[0];
+      chosenCandidate = {
+        perch: firstPerch,
+        index: 0,
+        screenPos: getFlowerScreenPosition(firstPerch, bounds),
+      };
     }
 
-    currentPerchIndexRef.current = nextIndex;
-    const targetPerch = FLOWER_PERCHES[nextIndex];
-
-    waypointsRef.current = generateProceduralFlight(currentCoordsRef.current, targetPerch, false, isPlayful);
+    currentPerchIndexRef.current = chosenCandidate.index;
+    waypointsRef.current = generateProceduralFlight(
+      currentCoordsRef.current,
+      chosenCandidate.screenPos,
+      bounds,
+      false,
+      isPlayful
+    );
     flightStartTimeRef.current = null;
     isLandedRef.current = false;
     setIsLandedState(false);
@@ -275,9 +377,22 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
     if (fullyBloomed && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
       const entryDelay = setTimeout(() => {
+        const bounds = getViewportBounds();
         const firstPerch = FLOWER_PERCHES[0]; // Centerpiece rose
         currentPerchIndexRef.current = 0;
-        waypointsRef.current = generateProceduralFlight({ normX: 0.88, normY: 0.08 }, firstPerch, true, false);
+        const targetPos = getFlowerScreenPosition(firstPerch, bounds);
+
+        const startX = bounds.safeRight - 20;
+        const startY = bounds.safeTop + 40;
+        currentCoordsRef.current = { x: startX, y: startY, angle: -25 };
+
+        waypointsRef.current = generateProceduralFlight(
+          { x: startX, y: startY },
+          targetPos,
+          bounds,
+          true,
+          false
+        );
         flightStartTimeRef.current = null;
         isLandedRef.current = false;
         setIsLandedState(false);
@@ -288,7 +403,7 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
     }
   }, [fullyBloomed]);
 
-  // 2. High-Performance Hardware-Accelerated Animation Loop
+  // 2. High-Performance Hardware-Accelerated Animation Loop & Viewport Event Listeners
   useEffect(() => {
     if (!active) return;
 
@@ -300,6 +415,33 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Handle viewport resize & orientation changes
+    const handleViewportChange = () => {
+      const bounds = getViewportBounds();
+      // Clamp current position if out of bounds after orientation shift
+      currentCoordsRef.current = {
+        x: Math.max(bounds.safeLeft, Math.min(bounds.safeRight, currentCoordsRef.current.x)),
+        y: Math.max(bounds.safeTop, Math.min(bounds.safeBottom, currentCoordsRef.current.y)),
+        angle: currentCoordsRef.current.angle,
+      };
+      if (isLandedRef.current) {
+        const currentPerch = FLOWER_PERCHES[currentPerchIndexRef.current];
+        const targetPos = getFlowerScreenPosition(currentPerch, bounds);
+        currentCoordsRef.current = {
+          x: targetPos.x,
+          y: targetPos.y,
+          angle: currentPerch.preferredAngle,
+        };
+        applyDOMTransforms(targetPos.x, targetPos.y, currentPerch.preferredAngle, 22, 0.75);
+      }
+    };
+
+    window.addEventListener("resize", handleViewportChange, { passive: true });
+    window.addEventListener("orientationchange", handleViewportChange, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange, { passive: true });
+    }
 
     let localAnimId: number;
 
@@ -319,18 +461,20 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
         const totalFlightTime = waypoints.length > 0 ? waypoints[waypoints.length - 1].time : 4.5;
 
         if (elapsedSec >= totalFlightTime) {
-          // Touchdown
+          // Touchdown on flower
           isLandedRef.current = true;
           setIsLandedState(true);
 
+          const bounds = getViewportBounds();
           const currentPerch = FLOWER_PERCHES[currentPerchIndexRef.current];
+          const landedPos = getFlowerScreenPosition(currentPerch, bounds);
           const landedCoords = {
-            normX: currentPerch.normX,
-            normY: currentPerch.normY,
+            x: landedPos.x,
+            y: landedPos.y,
             angle: currentPerch.preferredAngle + (Math.random() - 0.5) * 4,
           };
           currentCoordsRef.current = landedCoords;
-          applyDOMTransforms(landedCoords.normX, landedCoords.normY, landedCoords.angle, 24, 0.75);
+          applyDOMTransforms(landedCoords.x, landedCoords.y, landedCoords.angle, 22, 0.75);
 
           // Rest for 4.5s – 8.5s before autonomous takeoff
           const restDuration = Math.random() * 4000 + 4500;
@@ -343,7 +487,7 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
         }
 
         const sampled = sampleSpline(waypoints, elapsedSec);
-        currentCoordsRef.current = { normX: sampled.normX, normY: sampled.normY, angle: sampled.angle };
+        currentCoordsRef.current = { x: sampled.x, y: sampled.y, angle: sampled.angle };
 
         let wingAngle = 22;
         let shadowOpacity = 0.28;
@@ -367,7 +511,7 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
           shadowOpacity = 0.4 + settleProgress * 0.35;
         }
 
-        applyDOMTransforms(sampled.normX, sampled.normY, sampled.angle, wingAngle, shadowOpacity);
+        applyDOMTransforms(sampled.x, sampled.y, sampled.angle, wingAngle, shadowOpacity);
       } else {
         // === RESTING STATE (Gentle periodic basking/breathing flex) ===
         const t = timestamp / 1000;
@@ -376,17 +520,23 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
         const flexAmount = isSlowFlex ? Math.max(0, breathCycle) * 14 : Math.max(0, breathCycle) * 3.5;
         const wingAngle = 22 + flexAmount;
 
-        const { normX, normY, angle } = currentCoordsRef.current;
-        applyDOMTransforms(normX, normY, angle, wingAngle, 0.75);
+        const { x, y, angle } = currentCoordsRef.current;
+        applyDOMTransforms(x, y, angle, wingAngle, 0.75);
       }
 
       localAnimId = requestAnimationFrame(loop);
     };
 
     localAnimId = requestAnimationFrame(loop);
+    animFrameRef.current = localAnimId;
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("orientationchange", handleViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportChange);
+      }
       cancelAnimationFrame(localAnimId);
       if (restTimeoutRef.current) {
         clearTimeout(restTimeoutRef.current);
@@ -421,7 +571,7 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
   }
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-30">
       {/* Hardware-Accelerated Native 3D Butterfly Container */}
       <div
         ref={butterflyContainerRef}
@@ -429,8 +579,8 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
         onTouchStart={handleButterflyTap}
         className="absolute top-0 left-0 pointer-events-auto select-none touch-manipulation"
         style={{
-          width: "clamp(32px, 5.5vw, 52px)",
-          height: "clamp(32px, 5.5vw, 52px)",
+          width: "clamp(34px, 5.5vw, 50px)",
+          height: "clamp(34px, 5.5vw, 50px)",
           willChange: "transform",
           cursor: isLandedState ? "pointer" : "default",
           transformOrigin: "center center",
@@ -537,8 +687,8 @@ export default function RealButterfly({ fullyBloomed }: RealButterflyProps) {
 
       {/* Subtle, elegant prompt hint for best friend: "Tap the butterfly 🦋" */}
       {isLandedState && !hasInteracted && (
-        <div className="absolute -bottom-8 sm:-bottom-10 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-700 opacity-80 hover:opacity-100">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-sm text-[11px] sm:text-xs text-white/50 tracking-wide">
+        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-700 opacity-80 hover:opacity-100 z-40">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-sm text-[11px] sm:text-xs text-white/50 tracking-wide shadow-sm">
             <span>Tap the butterfly 🦋</span>
           </div>
         </div>

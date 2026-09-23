@@ -56,6 +56,27 @@ function formatIST(isoString: string | null | undefined): { dateStr: string; tim
   }
 }
 
+function safeGetAdmKey(): string | null {
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      return window.sessionStorage.getItem("__adm_key");
+    }
+  } catch {
+    // Fail-safe
+  }
+  return null;
+}
+
+function safeSetAdmKey(val: string): void {
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      window.sessionStorage.setItem("__adm_key", val);
+    }
+  } catch {
+    // Fail-safe
+  }
+}
+
 export default function PrivateAnalyticsDashboard() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -112,9 +133,7 @@ export default function PrivateAnalyticsDashboard() {
           setDbStatus(result.dbStatus);
         }
         setAuthenticated(true);
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("__adm_key", pass);
-        }
+        safeSetAdmKey(pass);
 
         const now = new Date();
         const timeFmt = new Intl.DateTimeFormat("en-IN", {
@@ -136,12 +155,10 @@ export default function PrivateAnalyticsDashboard() {
   }, [range, page]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedPass = sessionStorage.getItem("__adm_key");
-      if (savedPass) {
-        setPassword(savedPass);
-        fetchAnalytics(savedPass);
-      }
+    const savedPass = safeGetAdmKey();
+    if (savedPass) {
+      setPassword(savedPass);
+      fetchAnalytics(savedPass);
     }
   }, [fetchAnalytics]);
 

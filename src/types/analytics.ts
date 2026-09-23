@@ -63,7 +63,9 @@ export function parseDeviceFromUA(ua: string | null): {
   else if (/Mobile|Android|iPhone|iPod/i.test(ua)) type = "Mobile";
 
   let browser = "Other";
-  if (/Edg/i.test(ua)) browser = "Edge";
+  if (/Instagram/i.test(ua)) browser = "Instagram";
+  else if (/FBAN|FBAV|FB_IAB/i.test(ua)) browser = "Facebook";
+  else if (/Edg/i.test(ua)) browser = "Edge";
   else if (/Chrome|CriOS/i.test(ua)) browser = "Chrome";
   else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
   else if (/Firefox|FxiOS/i.test(ua)) browser = "Firefox";
