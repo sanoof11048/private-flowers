@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ActiveGiftRecord } from "@/types/gift";
 
@@ -8,13 +9,29 @@ interface GiftInteractionProps {
   visible?: boolean;
 }
 
+// Fallback initial active gift so button is NEVER hidden while loading or if API fails
+const DEFAULT_FALLBACK_GIFT: ActiveGiftRecord = {
+  id: "default-active-gift",
+  type: "image",
+  title: "Something sweet 🍫",
+  subtitle: "A classic essential",
+  media_url: "/gifts/kinder-joy.png",
+  punchline: "Okay fine... this one is actually edible 😂",
+  is_active: true,
+};
+
 export default function GiftInteraction({ visible = true }: GiftInteractionProps) {
-  const [activeGift, setActiveGift] = useState<ActiveGiftRecord | null>(null);
+  const [activeGift, setActiveGift] = useState<ActiveGiftRecord>(DEFAULT_FALLBACK_GIFT);
   const [isOpen, setIsOpen] = useState(false);
   const [mediaError, setMediaError] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Fetch the server-side single active gift
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch server-side active gift set by admin in /setter
   const fetchActiveGift = useCallback(async () => {
     try {
       const res = await fetch("/api/gift/active", {
@@ -26,12 +43,10 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
         const data = await res.json();
         if (data.success && data.activeGift) {
           setActiveGift(data.activeGift);
-        } else {
-          setActiveGift(null);
         }
       }
     } catch {
-      // Non-blocking fallback
+      // Non-blocking fallback to DEFAULT_FALLBACK_GIFT
     }
   }, []);
 
@@ -46,36 +61,66 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
     }
   }, [isOpen]);
 
-  // If no active gift is configured by admin, render nothing
-  if (!visible || !activeGift) return null;
+  if (!visible) return null;
 
-  return (
+  const currentGift = activeGift || DEFAULT_FALLBACK_GIFT;
+
+  const content = (
     <>
       {/* FIXED TOP-RIGHT VIEWPORT GIFT BUTTON */}
-      <div className="fixed mt-25 top-[calc(12px+env(safe-area-inset-top,0px))] right-[calc(12px+env(safe-area-inset-right,0px))] sm:top-5 sm:right-6 z-[9999] pointer-events-auto select-none">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: -6 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
+      <div
+        id="gift-button-viewport-root"
+        className="pointer-events-auto select-none"
+        style={{
+          position: "fixed",
+          top: "max(12px, env(safe-area-inset-top, 12px))",
+          right: "max(12px, env(safe-area-inset-right, 12px))",
+          zIndex: 2147483647,
+          visibility: "visible",
+          opacity: 1,
+          display: "flex",
+          maxWidth: "calc(100vw - 24px)",
+          boxSizing: "border-box",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(true);
+            setMediaError(false);
+          }}
+          className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3.5 py-2 sm:px-4 sm:py-2 rounded-full bg-[#13141f]/95 hover:bg-[#1a1c2b] active:scale-95 border border-rose-300/35 text-rose-100 hover:text-white text-xs sm:text-sm font-medium tracking-wide shadow-[0_4px_20px_rgba(0,0,0,0.8)] backdrop-blur-md transition-all duration-200 cursor-pointer touch-manipulation whitespace-nowrap"
+          style={{
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            display: "inline-flex",
+            visibility: "visible",
+            opacity: 1,
+            pointerEvents: "auto",
+          }}
+          title="Click for your gift 🎁"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setIsOpen(true);
-              setMediaError(false);
-            }}
-            className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full bg-[#13141f]/90 hover:bg-[#1a1c2b]/95 active:scale-95 border border-rose-300/25 hover:border-rose-300/40 text-rose-100 hover:text-white text-xs sm:text-sm font-medium tracking-wide shadow-[0_4px_20px_rgba(0,0,0,0.6)] backdrop-blur-md transition-all duration-200 cursor-pointer touch-manipulation whitespace-nowrap"
-            title="Click for your gift 🎁"
-          >
-            <span>Do you want a gift? 🎁</span>
-          </button>
-        </motion.div>
+          <span>Do you want a gift? 🎁</span>
+        </button>
       </div>
 
       {/* ACTIVE GIFT DISPLAY MODAL OVERLAY */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm pointer-events-auto select-none">
+          <div
+            className="fixed inset-0 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm pointer-events-auto select-none"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 2147483647,
+              visibility: "visible",
+              opacity: 1,
+              display: "flex",
+            }}
+          >
             {/* Background backdrop click to close */}
             <div
               className="absolute inset-0"
@@ -83,7 +128,7 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
             />
 
             <motion.div
-              key={`gift-viewer-${activeGift.id || "active"}`}
+              key={`gift-viewer-${currentGift.id || "active"}`}
               initial={{ opacity: 0, scale: 0.92, y: 14 }}
               animate={{
                 opacity: 1,
@@ -104,18 +149,18 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
                   <span>← Back</span>
                 </button>
                 <span className="text-[11px] text-white/40 tracking-wide font-mono uppercase">
-                  {activeGift.type} gift
+                  {currentGift.type} gift
                 </span>
               </div>
 
               {/* Gift Title & Optional Subtitle */}
               <div className="mb-3">
                 <h3 className="text-sm sm:text-base font-bold text-rose-200 tracking-wide">
-                  {activeGift.title}
+                  {currentGift.title}
                 </h3>
-                {activeGift.subtitle && (
+                {currentGift.subtitle && (
                   <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
-                    {activeGift.subtitle}
+                    {currentGift.subtitle}
                   </p>
                 )}
               </div>
@@ -129,22 +174,22 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
                       Gift coming soon 🎁
                     </p>
                   </div>
-                ) : activeGift.type === "image" || activeGift.type === "gif" ? (
+                ) : currentGift.type === "image" || currentGift.type === "gif" ? (
                   <div className="relative w-40 sm:w-48 aspect-square flex items-center justify-center p-1 rounded-xl bg-black/20 border border-white/5 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={activeGift.media_url || "/gifts/surprise.jpg"}
-                      alt={activeGift.title}
+                      src={currentGift.media_url || "/gifts/surprise.jpg"}
+                      alt={currentGift.title}
                       onError={() => setMediaError(true)}
                       className="w-full h-full object-contain drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)] rounded-lg pointer-events-none"
                       draggable={false}
                     />
                   </div>
-                ) : activeGift.type === "video" ? (
+                ) : currentGift.type === "video" ? (
                   <div className="w-full max-w-[280px] aspect-video rounded-xl overflow-hidden bg-black/40 border border-white/10 shadow-lg">
                     <video
                       ref={videoRef}
-                      src={activeGift.media_url || ""}
+                      src={currentGift.media_url || ""}
                       controls
                       playsInline
                       preload="metadata"
@@ -152,25 +197,25 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
                       className="w-full h-full object-cover"
                     />
                   </div>
-                ) : activeGift.type === "tenor" ? (
+                ) : currentGift.type === "tenor" ? (
                   <ActiveTenorEmbed
-                    postId={activeGift.tenor_post_id || "12553196888763818675"}
+                    postId={currentGift.tenor_post_id || "12553196888763818675"}
                     onError={() => setMediaError(true)}
                   />
-                ) : activeGift.type === "message" ? (
+                ) : currentGift.type === "message" ? (
                   <div className="flex flex-col items-center justify-center py-4 px-3 space-y-2 text-center min-h-[100px] bg-white/[0.03] border border-white/5 rounded-xl w-full">
                     <p className="text-xs sm:text-sm text-rose-200/90 font-medium">
-                      {activeGift.message || "A special message just for you."}
+                      {currentGift.message || "A special message just for you."}
                     </p>
                   </div>
                 ) : null}
               </div>
 
               {/* Playful Best-Friend Punchlines */}
-              {activeGift.punchline && (
+              {currentGift.punchline && (
                 <div className="mt-3 text-center">
                   <p className="text-xs sm:text-sm font-medium text-rose-200/90">
-                    {activeGift.punchline}
+                    {currentGift.punchline}
                   </p>
                 </div>
               )}
@@ -180,6 +225,13 @@ export default function GiftInteraction({ visible = true }: GiftInteractionProps
       </AnimatePresence>
     </>
   );
+
+  // During initial SSR frame render inline, once mounted portal to document.body for top-level stacking
+  if (mounted && typeof document !== "undefined" && document.body) {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }
 
 // Active Tenor GIF Embed with safe on-demand script & fallback
