@@ -6,6 +6,7 @@ import { FLOWER_ASSETS } from "@/config/flowerAssets";
 import RealButterfly from "@/components/RealButterfly";
 import VisitTracker from "@/components/VisitTracker";
 import GiftInteraction from "@/components/GiftInteraction";
+import Link from "next/link";
 
 interface StarParticle {
   x: number;
@@ -1400,6 +1401,25 @@ export default function BotanicalMotionBouquet() {
 
       {/* Fixed Viewport Gift Button & Overlay Modal */}
       <GiftInteraction />
+
+      {/* Subtle Link to Our Story Page */}
+      <div
+        className="pointer-events-auto select-none"
+        style={{
+          position: "fixed",
+          top: "max(12px, env(safe-area-inset-top, 12px))",
+          left: "max(12px, env(safe-area-inset-left, 12px))",
+          zIndex: 2147483640,
+        }}
+      >
+        <Link
+          href="/our-story"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-[#13141f]/90 hover:bg-[#1a1c2b] active:scale-95 border border-rose-300/35 text-rose-100 hover:text-white text-xs sm:text-sm font-medium tracking-wide shadow-[0_4px_20px_rgba(0,0,0,0.8)] backdrop-blur-md transition-all duration-200 cursor-pointer touch-manipulation whitespace-nowrap"
+          title="Read our story ❤️"
+        >
+          <span>Our Story ❤️</span>
+        </Link>
+      </div>
     </main>
   );
 }
