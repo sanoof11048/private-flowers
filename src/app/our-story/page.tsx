@@ -52,6 +52,79 @@ interface LightboxImage {
   location?: string;
 }
 
+export interface JournalMemoryEntry {
+  id: string;
+  date: string;
+  title: string;
+  storyText?: string;
+  photo?: string;
+  tag?: string;
+}
+
+// Reusable chronicle entries in chronological order — easily extendable as new memories are made!
+export const JOURNAL_TIMELINE_ENTRIES: JournalMemoryEntry[] = [
+  {
+    id: "puttekatt",
+    date: "December 2023",
+    title: "The first sight on Puttekatt",
+    storyText: "Where my interest and feelings quietly began.",
+    photo: "/images/Bus.jpeg",
+    tag: "Where it began",
+  },
+  {
+    id: "school-gate",
+    date: "February 2024",
+    title: "Asking your name & “Perilla.”",
+    storyText: "Our first little conversation at the school gate.",
+    photo: "/images/school-gate.jpg",
+    tag: "First words",
+  },
+  {
+    id: "instagram",
+    date: "April 20, 2026",
+    title: "Instagram stories & notes",
+    storyText: "A story like and notes that brought you back into my world.",
+    tag: "Reconnecting",
+  },
+  {
+    id: "hi-message",
+    date: "August 23, 2026",
+    title: "The nervous first “Hi.”",
+    storyText: "Replying to your note at 6:57 PM after so much overthinking.",
+    tag: "First message",
+  },
+  {
+    id: "whispers",
+    date: "October 8, 2026",
+    title: "Our first roadside whispers",
+    storyText: "Seeing you in real life and exchanging soft words by the road.",
+    photo: "/images/oct_8_visit.webp",
+    tag: "In person again",
+  },
+  {
+    id: "chemmad-date",
+    date: "October 9, 2026",
+    title: "Our first car date & selfie",
+    storyText: "Spending the morning together from Chemmad to the bus stand.",
+    photo: "/images/oct_9_visit.webp",
+    tag: "First meet",
+  },
+  {
+    id: "call-51",
+    date: "October 12, 2026",
+    title: "Our first 51-minute call",
+    storyText: "Hearing each other's voices for 51 minutes at 11:46 AM.",
+    tag: "Hearing voices",
+  },
+  {
+    id: "confession",
+    date: "October 21, 2026",
+    title: "Your unexpected question & “YES. OBVIOUSLY.”",
+    storyText: "When you asked me to be your boyfriend at 2:27 PM.",
+    tag: "Official",
+  },
+];
+
 export default function OurStoryPage() {
   const prefersReducedMotion = useReducedMotion();
   const [activePhoto, setActivePhoto] = useState<LightboxImage | null>(null);
@@ -198,7 +271,7 @@ export default function OurStoryPage() {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
         setPlaybackError(null);
-      }).catch(() => {});
+      }).catch(() => { });
     }
     const el = document.getElementById("first-time-i-saw-you");
     if (el) {
@@ -233,9 +306,8 @@ export default function OurStoryPage() {
       {/* FLOATING TOP NAVIGATION PILL */}
       <nav
         aria-label="Story navigation"
-        className={`fixed top-4 left-0 right-0 z-40 flex items-center justify-between px-4 sm:px-8 pointer-events-none transition-all duration-300 ${
-          isHeaderVisible ? "opacity-100 translate-y-0" : "opacity-95 translate-y-0"
-        }`}
+        className={`fixed top-4 left-0 right-0 z-40 flex items-center justify-between px-4 sm:px-8 pointer-events-none transition-all duration-300 ${isHeaderVisible ? "opacity-100 translate-y-0" : "opacity-95 translate-y-0"
+          }`}
       >
         {/* Back to Bouquet */}
         <Link
@@ -295,8 +367,7 @@ export default function OurStoryPage() {
             transition={{ duration: 0.9, delay: 0.4 }}
             className="text-base sm:text-lg md:text-xl text-[#6B4F55] leading-relaxed max-w-xl font-light mb-8"
           >
-            Ours began on Puttekatt, with a girl who had no idea someone was quietly
-            hoping to see her again.
+            I don&apos;t know exactly when you became this special to me. I just know that talking to you became something I look forward to, and even ordinary days feel different because of you.
           </motion.p>
 
           <motion.div
@@ -326,11 +397,10 @@ export default function OurStoryPage() {
                 type="button"
                 onClick={togglePlaySong}
                 aria-label={isPlaying ? `Pause ${currentTrack.title}` : `Play our song: ${currentTrack.title}`}
-                className={`group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 cursor-pointer ${
-                  isPlaying
-                    ? "bg-rose-100/95 text-[#8C1D32] shadow-xs"
-                    : "hover:bg-rose-50 text-[#7A3644]"
-                }`}
+                className={`group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 cursor-pointer ${isPlaying
+                  ? "bg-rose-100/95 text-[#8C1D32] shadow-xs"
+                  : "hover:bg-rose-50 text-[#7A3644]"
+                  }`}
               >
                 <Music className={`w-3.5 h-3.5 text-rose-500 ${isPlaying ? "animate-pulse" : ""}`} />
                 <span>{isPlaying ? `Playing: ${currentTrack.title} ♫` : `Play: ${currentTrack.title} ♡`}</span>
@@ -361,11 +431,10 @@ export default function OurStoryPage() {
                   key={track.id}
                   type="button"
                   onClick={() => switchTrack(idx)}
-                  className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${
-                    idx === currentTrackIndex
-                      ? "bg-rose-200/90 text-[#6B172A] font-semibold shadow-2xs"
-                      : "bg-white/60 hover:bg-white text-[#7A5B62] border border-rose-100"
-                  }`}
+                  className={`px-2.5 py-0.5 rounded-full transition-all cursor-pointer ${idx === currentTrackIndex
+                    ? "bg-rose-200/90 text-[#6B172A] font-semibold shadow-2xs"
+                    : "bg-white/60 hover:bg-white text-[#7A5B62] border border-rose-100"
+                    }`}
                 >
                   {track.title}
                 </button>
@@ -386,7 +455,7 @@ export default function OurStoryPage() {
             onClick={scrollToFirstMemory}
             className="group inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-[#8C2D40] hover:bg-[#782335] text-rose-50 text-sm font-medium tracking-wide shadow-md shadow-rose-900/15 hover:shadow-lg hover:shadow-rose-900/25 transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
           >
-            <span>Read everything I wanted to tell you</span>
+            <span>Come, let me tell you our story</span>
             <ChevronDown className="w-4 h-4 text-rose-200 transition-transform duration-300 group-hover:translate-y-0.5" />
           </motion.button>
         </div>
@@ -1505,7 +1574,57 @@ export default function OurStoryPage() {
         </section>
 
         {/* =========================================================================
-            SECTION 13 — THE LETTER I WANT YOU TO READ SLOWLY
+            SECTION 13 — A LITTLE ABOUT TOMORROW (SUBTLE FUTURE & AMBITION)
+            ========================================================================= */}
+        <section className="relative pt-20 sm:pt-28">
+          <motion.div
+            {...animFadeUp}
+            className="max-w-2xl mx-auto p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-white via-rose-50/50 to-pink-50/30 border-2 border-rose-200 shadow-lg space-y-6"
+          >
+            <div className="flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-100/90 text-xs font-serif font-medium text-[#732B3B] border border-rose-200">
+                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                Thoughts on What Lies Ahead
+              </span>
+            </div>
+
+            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-center font-medium text-[#3D1D24]">
+              A little about tomorrow
+            </h2>
+
+            <div className="space-y-4 text-sm sm:text-base text-[#4A353A] leading-relaxed">
+              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
+                There&apos;s still so much I want to do in life. I have dreams to chase, work to do, and a lot to prove to myself.
+              </p>
+              <p>
+                I want to build a life that I&apos;m proud of, and sometimes, when I imagine the days ahead, I find myself thinking about you too.
+              </p>
+              <p>
+                I don&apos;t know exactly what life has planned for us. But I know I want to keep growing, work hard, and become someone who can share good days with you and face the difficult ones beside you.
+              </p>
+              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 border border-rose-100 space-y-2 font-serif italic text-sm sm:text-base text-[#632330]">
+                <p>
+                  I have dreams and responsibilities, and I take them seriously.
+                </p>
+                <p>
+                  I want to become a better version of myself, not just for a relationship, but for my own life too.
+                </p>
+                <p>
+                  I cannot predict how life will go, but I can choose to work hard, learn from setbacks, and keep improving.
+                </p>
+              </div>
+              <p className="font-serif italic text-base sm:text-lg text-[#782336] pl-4 border-l-2 border-rose-300">
+                I want us both to grow, achieve our dreams, and be happy with the people we&apos;re becoming.
+              </p>
+              <div className="pt-3 border-t border-rose-200 text-center font-serif text-base sm:text-lg italic text-[#8C1D32] font-medium">
+                “I just want you to know that, when I think about the days ahead, you have a place in my thoughts.”
+              </div>
+            </div>
+          </motion.div>
+        </section>
+
+        {/* =========================================================================
+            SECTION 14 — THE LETTER I WANT YOU TO READ SLOWLY
             ========================================================================= */}
         <section className="relative pt-24 sm:pt-36">
           <motion.div
@@ -1733,7 +1852,7 @@ export default function OurStoryPage() {
             SECTION 15 — TIMELINE & MEMORABLE KEEPSAKES
             ========================================================================= */}
 
-        {/* LOOK HOW FAR WE'VE COME TIMELINE */}
+        {/* AN ONGOING JOURNAL OF US — TIMELINE */}
         <section className="relative pt-20 sm:pt-28">
           <motion.div
             {...animFadeUp}
@@ -1742,37 +1861,45 @@ export default function OurStoryPage() {
             <div className="text-center space-y-1">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100/70 text-xs font-serif text-[#7A2B3B] font-medium">
                 <Bookmark className="w-3.5 h-3.5 text-rose-500" />
-                Our Journey
+                An Ongoing Journal of Us
               </span>
               <h3 className="font-serif text-2xl sm:text-3xl font-medium text-[#3D1D24]">
                 Look how far we&apos;ve come
               </h3>
+              <p className="text-xs font-serif italic text-[#8C6D73]">
+                Memories we&apos;ve gathered, in the order they happened
+              </p>
             </div>
 
             <div className="space-y-3 pt-2">
-              {[
-                { date: "December 2023", title: "The first sight on Puttekatt" },
-                { date: "February 2024", title: "Asking your name & “Perilla.”" },
-                { date: "April 20, 2026", title: "Instagram stories & notes" },
-                { date: "August 23, 2026", title: "The nervous first “Hi.”" },
-                { date: "October 8, 2026", title: "Our first roadside whispers" },
-                { date: "October 9, 2026", title: "Our first car date & selfie" },
-                { date: "October 12, 2026", title: "Our first 51-minute call" },
-                { date: "October 21, 2026", title: "Your unexpected question & “YES. OBVIOUSLY.”" },
-              ].map((item, idx) => (
+              {JOURNAL_TIMELINE_ENTRIES.map((item) => (
                 <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-rose-50/50 hover:bg-rose-50 transition-colors border border-rose-100/80 text-xs sm:text-sm"
+                  key={item.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-rose-50/50 hover:bg-rose-50 transition-colors border border-rose-100/80 text-xs sm:text-sm gap-2"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0" />
-                    <span className="font-serif font-medium text-[#4A262E]">
-                      {item.title}
+                  <div className="flex items-start sm:items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
+                    <div>
+                      <span className="font-serif font-medium text-[#4A262E] block sm:inline">
+                        {item.title}
+                      </span>
+                      {item.storyText && (
+                        <p className="text-[11px] text-[#7A5B62] font-serif italic mt-0.5">
+                          {item.storyText}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    {item.tag && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100/80 text-[#7A2B3B] font-serif">
+                        {item.tag}
+                      </span>
+                    )}
+                    <span className="text-[#875F66] font-mono text-[11px] sm:text-xs">
+                      {item.date}
                     </span>
                   </div>
-                  <span className="text-[#875F66] font-mono text-[11px] sm:text-xs">
-                    {item.date}
-                  </span>
                 </div>
               ))}
             </div>
@@ -1832,26 +1959,49 @@ export default function OurStoryPage() {
           </motion.div>
         </section>
 
-        {/* P.S. LENA FATHIMA K */}
+
         <section className="relative pt-16 sm:pt-20 text-center">
           <motion.div
             {...animFadeUp}
             className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-rose-100/60 via-pink-100/50 to-rose-100/60 border border-rose-200 shadow-sm space-y-3"
           >
             <p className="font-serif text-lg sm:text-xl font-semibold text-[#8C2337]">
-              P.S. Lena Fathima K…
+              One little thing about you
             </p>
+
             <p className="font-serif italic text-base sm:text-lg text-[#52333A] leading-relaxed">
               You once told me you didn&apos;t have a name.
             </p>
+
             <p className="font-serif italic text-base sm:text-lg text-[#8C1D32] font-semibold leading-relaxed">
-              Now your name — Lena Fathima K — is written all over one of my favourite stories. ❤️
+              And now, Lena Fathima K, your name has become part of one of my favourite stories. ❤️
+            </p>
+          </motion.div>
+        </section>
+
+
+        {/* JOURNAL CONTINUATION CLOSING NOTE */}
+        <section className="relative pt-12 pb-4 text-center">
+          <motion.div {...animFadeUp} className="max-w-xl mx-auto space-y-3">
+            <div className="flex items-center justify-center gap-3">
+              <span className="w-12 h-px bg-rose-200" />
+              <Heart className="w-4 h-4 text-rose-400 fill-rose-300/40" />
+              <span className="w-12 h-px bg-rose-200" />
+            </div>
+            <p className="font-serif italic text-lg sm:text-xl text-[#732B3B] font-medium leading-relaxed">
+              “Our story is still being written.”
+            </p>
+            <p className="text-xs sm:text-sm font-serif italic text-[#8C6D73]">
+              There are still so many little moments waiting to become memories.
+            </p>
+            <p className="text-[11px] font-sans text-rose-500/80 tracking-widest uppercase font-medium">
+              An ongoing journal · With you ♡
             </p>
           </motion.div>
         </section>
 
         {/* Footer Summary */}
-        <div className="pt-12 text-center text-xs text-[#87656C] font-serif italic">
+        <div className="pt-8 text-center text-xs text-[#87656C] font-serif italic">
           Our story began in December 2023. We found our way to each other in
           October 2026. And we&apos;re still writing it together.
         </div>
