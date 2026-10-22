@@ -2,8 +2,11 @@ import fs from "fs";
 import path from "path";
 import heicConvert from "heic-convert";
 import sharp from "sharp";
+import galleryManifest from "@/data/gallery-manifest.json";
 
+export const PUBLIC_GALLERY_DIR = path.join(process.cwd(), "public", "Our Gallery");
 export const PRIVATE_GALLERY_DIR = path.join(process.cwd(), "private_gallery");
+export const THUMBS_DIR = path.join(process.cwd(), "public", "_gallery_thumbs");
 export const CACHE_DIR = path.join(PRIVATE_GALLERY_DIR, ".cache");
 
 // Ensure cache directory exists
@@ -20,6 +23,7 @@ export type MediaType = "image" | "video";
 export interface MediaItem {
   id: string;
   filename: string;
+  relativePath?: string;
   type: MediaType;
   format: string;
   sizeBytes: number;
@@ -27,6 +31,8 @@ export interface MediaItem {
   width?: number;
   height?: number;
   aspectRatio?: number;
+  mediaUrl?: string;
+  thumbUrl?: string | null;
 }
 
 const SUPPORTED_IMAGE_EXTENSIONS = new Set([
@@ -45,9 +51,6 @@ const SUPPORTED_VIDEO_EXTENSIONS = new Set([
   ".webm",
 ]);
 
-// In-memory metadata dimension cache
-const dimensionsCache = new Map<string, { width: number; height: number; aspectRatio: number }>();
-
 /**
  * Generate a safe URL-friendly identifier for a file
  */
@@ -56,52 +59,70 @@ export function encodeMediaId(filename: string): string {
 }
 
 /**
- * Decode and strictly validate that the requested file resides securely inside PRIVATE_GALLERY_DIR
+ * Decode and strictly validate that the requested file resides securely
  */
 export function resolveSafeMediaPath(mediaId: string): { filePath: string; filename: string } | null {
   try {
-    const filename = Buffer.from(mediaId, "base64url").toString("utf-8");
-    // Normalize and prevent directory traversal
-    const safeName = path.basename(filename);
-    const resolvedPath = path.resolve(PRIVATE_GALLERY_DIR, safeName);
+    const rawName = Buffer.from(mediaId, "base64url").toString("utf-8");
+    const safeName = path.basename(rawName);
 
-    if (!resolvedPath.startsWith(PRIVATE_GALLERY_DIR)) {
-      return null;
+    // 1. Try public/Our Gallery (preferred in production / Vercel)
+    const publicPath = path.resolve(PUBLIC_GALLERY_DIR, safeName);
+    if (publicPath.startsWith(PUBLIC_GALLERY_DIR) && fs.existsSync(publicPath)) {
+      const stat = fs.statSync(publicPath);
+      if (stat.isFile()) {
+        return { filePath: publicPath, filename: safeName };
+      }
     }
 
-    if (!fs.existsSync(resolvedPath)) {
-      return null;
+    // 2. Try private_gallery fallback (if present locally)
+    if (fs.existsSync(PRIVATE_GALLERY_DIR)) {
+      const privatePath = path.resolve(PRIVATE_GALLERY_DIR, safeName);
+      if (privatePath.startsWith(PRIVATE_GALLERY_DIR) && fs.existsSync(privatePath)) {
+        const stat = fs.statSync(privatePath);
+        if (stat.isFile()) {
+          return { filePath: privatePath, filename: safeName };
+        }
+      }
     }
 
-    const stat = fs.statSync(resolvedPath);
-    if (!stat.isFile()) {
-      return null;
-    }
-
-    return { filePath: resolvedPath, filename: safeName };
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Scan private_gallery directory and return sorted metadata list
+ * Retrieve the media list:
+ * Uses pre-computed build-time manifest in production for guaranteed 100% Vercel reliability.
  */
 export async function getPrivateMediaList(): Promise<MediaItem[]> {
-  if (!fs.existsSync(PRIVATE_GALLERY_DIR)) {
+  // 1. Always use build-time manifest if available (guarantees all 49 items on Vercel)
+  if (Array.isArray(galleryManifest) && galleryManifest.length > 0) {
+    return galleryManifest as MediaItem[];
+  }
+
+  // 2. Dynamic fallback scanning
+  const searchDir = fs.existsSync(PUBLIC_GALLERY_DIR)
+    ? PUBLIC_GALLERY_DIR
+    : fs.existsSync(PRIVATE_GALLERY_DIR)
+    ? PRIVATE_GALLERY_DIR
+    : null;
+
+  if (!searchDir) {
+    console.warn("No gallery directory found on server.");
     return [];
   }
 
-  const entries = await fs.promises.readdir(PRIVATE_GALLERY_DIR);
+  const entries = await fs.promises.readdir(searchDir);
   const items: MediaItem[] = [];
 
   for (const entry of entries) {
-    // Ignore hidden files and .cache folder
-    if (entry.startsWith(".") || entry === ".cache") {
+    if (entry.startsWith(".") || entry === ".cache" || entry === "_gallery_thumbs") {
       continue;
     }
 
-    const filePath = path.join(PRIVATE_GALLERY_DIR, entry);
+    const filePath = path.join(searchDir, entry);
     try {
       const stat = await fs.promises.stat(filePath);
       if (!stat.isFile()) continue;
@@ -117,53 +138,26 @@ export async function getPrivateMediaList(): Promise<MediaItem[]> {
 
       if (!type) continue;
 
-      let width = 720;
-      let height = 960;
-      let aspectRatio = 0.75;
-
-      if (type === "video") {
-        aspectRatio = 0.75;
-      } else {
-        if (dimensionsCache.has(entry)) {
-          const cached = dimensionsCache.get(entry)!;
-          width = cached.width;
-          height = cached.height;
-          aspectRatio = cached.aspectRatio;
-        } else {
-          const cachedThumb = path.join(CACHE_DIR, `thumb_${entry}.webp`);
-          if (fs.existsSync(cachedThumb)) {
-            try {
-              const meta = await sharp(cachedThumb).metadata();
-              if (meta.width && meta.height) {
-                width = meta.width;
-                height = meta.height;
-                aspectRatio = Number((meta.width / meta.height).toFixed(3));
-                dimensionsCache.set(entry, { width, height, aspectRatio });
-              }
-            } catch {
-              // fallback
-            }
-          }
-        }
-      }
-
+      const id = encodeMediaId(entry);
       items.push({
-        id: encodeMediaId(entry),
+        id,
         filename: entry,
+        relativePath: entry,
         type,
         format: ext.replace(".", "").toUpperCase(),
         sizeBytes: stat.size,
         mtime: stat.mtimeMs,
-        width,
-        height,
-        aspectRatio,
+        width: 720,
+        height: 960,
+        aspectRatio: 0.75,
+        mediaUrl: `/Our%20Gallery/${encodeURIComponent(entry)}`,
+        thumbUrl: type === "image" ? `/_gallery_thumbs/thumb_${encodeURIComponent(entry)}.webp` : null,
       });
     } catch {
       // Ignore unreadable entries
     }
   }
 
-  // Sort by filename naturally (e.g. IMG_3332, IMG_6200, IMG_6201...)
   items.sort((a, b) =>
     a.filename.localeCompare(b.filename, undefined, { numeric: true, sensitivity: "base" })
   );
@@ -173,7 +167,6 @@ export async function getPrivateMediaList(): Promise<MediaItem[]> {
 
 /**
  * Get or convert web-friendly image buffer
- * Converts HEIC to JPEG/WebP and caches result for subsequent high-speed serving
  */
 export async function getWebFriendlyImage(
   filePath: string,
@@ -181,6 +174,15 @@ export async function getWebFriendlyImage(
 ): Promise<{ buffer: Buffer; contentType: string }> {
   const ext = path.extname(filePath).toLowerCase();
   const filename = path.basename(filePath);
+
+  // Check pre-generated public thumbnails first
+  if (isThumbnail) {
+    const publicThumb = path.join(THUMBS_DIR, `thumb_${filename}.webp`);
+    if (fs.existsSync(publicThumb)) {
+      const buffer = await fs.promises.readFile(publicThumb);
+      return { buffer, contentType: "image/webp" };
+    }
+  }
 
   const cacheKey = isThumbnail
     ? `thumb_${filename}.webp`
@@ -210,7 +212,6 @@ export async function getWebFriendlyImage(
     });
     rawBuffer = Buffer.from(converted as ArrayBuffer);
 
-    // Save full converted JPEG to cache
     if (!isThumbnail) {
       try {
         const fullCachedPath = path.join(CACHE_DIR, `full_${filename}.jpg`);
@@ -225,7 +226,7 @@ export async function getWebFriendlyImage(
   // If thumbnail requested, resize to 720px width webp using sharp
   if (isThumbnail) {
     const thumbBuffer = await sharp(rawBuffer)
-      .rotate() // auto-orient based on EXIF
+      .rotate()
       .resize({ width: 720, withoutEnlargement: true })
       .webp({ quality: 82 })
       .toBuffer();

@@ -18,11 +18,13 @@ import {
   Film,
   Image as ImageIcon,
   LogOut,
+  RefreshCw,
 } from "lucide-react";
 
 interface MediaItem {
   id: string;
   filename: string;
+  relativePath?: string;
   type: "image" | "video";
   format: string;
   sizeBytes: number;
@@ -30,6 +32,8 @@ interface MediaItem {
   width?: number;
   height?: number;
   aspectRatio?: number;
+  mediaUrl?: string;
+  thumbUrl?: string | null;
 }
 
 /**
@@ -48,7 +52,7 @@ function VideoMemoryCard({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInView, setIsInView] = useState(index < 4);
-  const mediaUrl = `/api/memories/media/${item.id}`;
+  const mediaUrl = item.mediaUrl || `/api/memories/media/${item.id}`;
 
   useEffect(() => {
     if (isInView) return;
@@ -93,7 +97,7 @@ function VideoMemoryCard({
         />
       ) : (
         <div className="absolute inset-0 bg-neutral-900/90 flex items-center justify-center">
-          <Film className="w-8 h-8 text-neutral-700 animate-pulse" />
+          <Film className="w-6 h-6 text-neutral-600" />
         </div>
       )}
 
@@ -126,10 +130,14 @@ export default function OurMemoriesPage() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [filter, setFilter] = useState<"all" | "image" | "video">("all");
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Real-time Media Loading Tracking State
   const [loadedMediaIds, setLoadedMediaIds] = useState<Set<string>>(new Set());
-  const [isProgressDismissed, setIsProgressDismissed] = useState(false);
+
+  // Refined Loading Indicator Controls
+  const [showIndicator, setShowIndicator] = useState(false);
+  const [isFullyGathered, setIsFullyGathered] = useState(false);
 
   // Lightbox / Memory Viewer State
   const [activeViewerIndex, setActiveViewerIndex] = useState<number | null>(null);
@@ -168,18 +176,26 @@ export default function OurMemoriesPage() {
   // 2. Fetch Media List Once Authenticated
   const fetchMediaList = useCallback(async () => {
     setIsDiscovering(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/memories/list", {
         cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
-        setMediaItems(data.items || []);
+        const items = data.items || [];
+        setMediaItems(items);
+        if (items.length === 0) {
+          setLoadError("No memories were found in storage.");
+        }
       } else if (res.status === 401) {
         setIsAuthenticated(false);
+      } else {
+        setLoadError(`Server returned status ${res.status}. Please try again.`);
       }
     } catch (err) {
       console.error("Failed to load memories:", err);
+      setLoadError("Connection error while loading memories. Please check network and retry.");
     } finally {
       setIsDiscovering(false);
     }
@@ -217,7 +233,7 @@ export default function OurMemoriesPage() {
 
         if (item.type === "image") {
           const img = new Image();
-          img.src = `/api/memories/media/${item.id}?thumb=1`;
+          img.src = item.thumbUrl || `/api/memories/media/${item.id}?thumb=1`;
 
           const onFinish = () => {
             markLoaded(item.id);
@@ -229,7 +245,8 @@ export default function OurMemoriesPage() {
           img.onerror = onFinish;
         } else {
           // Warm video stream probe via HTTP Range request (2KB header)
-          fetch(`/api/memories/media/${item.id}`, {
+          const targetUrl = item.mediaUrl || `/api/memories/media/${item.id}`;
+          fetch(targetUrl, {
             headers: { Range: "bytes=0-2048" },
           })
             .then(() => markLoaded(item.id))
@@ -245,7 +262,7 @@ export default function OurMemoriesPage() {
     // Small delay to prioritize immediate DOM render of visible items
     const timer = setTimeout(() => {
       pumpQueue();
-    }, 150);
+    }, 120);
 
     return () => {
       isCancelled = true;
@@ -253,15 +270,37 @@ export default function OurMemoriesPage() {
     };
   }, [mediaItems, markLoaded, loadedMediaIds]);
 
-  // 4. Auto-dismiss progress bar gently after 100% completion
+  // Calculate live accurate progress
+  const totalItemsCount = mediaItems.length;
+  const loadedCount = Math.min(loadedMediaIds.size, totalItemsCount);
+  const progressPercentage =
+    totalItemsCount > 0 ? Math.round((loadedCount / totalItemsCount) * 100) : 0;
+  const isFullyLoaded = totalItemsCount > 0 && loadedCount >= totalItemsCount;
+
+  // 4. Subtle, Calm Indicator Lifecycle (Flash Avoidance & Graceful Completion)
   useEffect(() => {
-    if (mediaItems.length > 0 && loadedMediaIds.size >= mediaItems.length) {
+    if (!isAuthenticated) return;
+
+    // Grace period timer (140ms): only show if loading genuinely takes time
+    const graceTimer = setTimeout(() => {
+      if (!isFullyLoaded) {
+        setShowIndicator(true);
+      }
+    }, 140);
+
+    return () => clearTimeout(graceTimer);
+  }, [isAuthenticated, isFullyLoaded]);
+
+  useEffect(() => {
+    if (isFullyLoaded && showIndicator) {
+      setIsFullyGathered(true);
+      // Let user calmly see completion transition, then gently dissolve
       const dismissTimer = setTimeout(() => {
-        setIsProgressDismissed(true);
-      }, 2400);
+        setShowIndicator(false);
+      }, 1500);
       return () => clearTimeout(dismissTimer);
     }
-  }, [loadedMediaIds.size, mediaItems.length]);
+  }, [isFullyLoaded, showIndicator]);
 
   // 5. Handle Login Submission
   const handleLogin = async (e: React.FormEvent) => {
@@ -305,7 +344,8 @@ export default function OurMemoriesPage() {
       setIsAuthenticated(false);
       setMediaItems([]);
       setLoadedMediaIds(new Set());
-      setIsProgressDismissed(false);
+      setShowIndicator(false);
+      setIsFullyGathered(false);
       setActiveViewerIndex(null);
     }
   };
@@ -316,13 +356,6 @@ export default function OurMemoriesPage() {
     if (filter === "video") return item.type === "video";
     return true;
   });
-
-  // Calculate live accurate progress
-  const totalItemsCount = mediaItems.length;
-  const loadedCount = Math.min(loadedMediaIds.size, totalItemsCount);
-  const progressPercentage =
-    totalItemsCount > 0 ? Math.round((loadedCount / totalItemsCount) * 100) : 0;
-  const isFullyLoaded = totalItemsCount > 0 && loadedCount >= totalItemsCount;
 
   // Modal Navigation
   const activeMedia =
@@ -374,7 +407,7 @@ export default function OurMemoriesPage() {
     return (
       <main className="min-h-screen bg-[#FFF9F6] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full border-2 border-rose-300 border-t-rose-600 animate-spin" />
+          <div className="w-8 h-8 rounded-full border-2 border-rose-200 border-t-rose-600 animate-spin" />
           <p className="font-serif italic text-sm text-[#732B3B]">
             Opening our little universe…
           </p>
@@ -391,7 +424,7 @@ export default function OurMemoriesPage() {
       <main className="relative min-h-screen bg-[#FFF9F6] text-[#3D2C30] flex flex-col items-center justify-center p-4 sm:p-6 overflow-hidden selection:bg-rose-200">
         {/* Soft Background Ambiance */}
         <div className="fixed inset-0 pointer-events-none -z-10">
-          <div className="absolute top-[10%] left-[8%] w-80 h-80 rounded-full bg-rose-200/30 blur-3xl animate-pulse" />
+          <div className="absolute top-[10%] left-[8%] w-80 h-80 rounded-full bg-rose-200/30 blur-3xl" />
           <div className="absolute bottom-[10%] right-[8%] w-96 h-96 rounded-full bg-pink-100/40 blur-3xl" />
         </div>
 
@@ -408,9 +441,9 @@ export default function OurMemoriesPage() {
 
         {/* Lock Card */}
         <motion.div
-          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95, y: 16 }}
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           className="relative max-w-md w-full p-8 sm:p-10 rounded-3xl bg-white/90 backdrop-blur-md border-2 border-rose-200/80 shadow-2xl shadow-rose-950/10 text-center space-y-6"
         >
           {/* Decorative Lock Badge */}
@@ -513,7 +546,7 @@ export default function OurMemoriesPage() {
   return (
     <main className="relative min-h-screen bg-[#FFF9F6] text-[#3D2C30] selection:bg-rose-200 pb-32">
       {/* FLOATING TOP NAVIGATION BAR */}
-      <nav className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-rose-100 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
+      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-rose-100/80 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -537,63 +570,87 @@ export default function OurMemoriesPage() {
           <span>Lock Gallery</span>
           <LogOut className="w-3 h-3 text-rose-400 opacity-60" />
         </button>
+
+        {/* Hairline Progress on Sticky Nav (Subtle Continuous Feedback on Scroll) */}
+        <AnimatePresence>
+          {showIndicator && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-rose-100/50 overflow-hidden pointer-events-none"
+            >
+              <div
+                className="h-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400"
+                style={{
+                  width: `${progressPercentage}%`,
+                  transition: prefersReducedMotion
+                    ? "none"
+                    : "width 400ms cubic-bezier(0.16, 1, 0.3, 1)",
+                  boxShadow: "0 0 6px rgba(225, 29, 72, 0.22)",
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
-      {/* NON-BLOCKING LIVE PROGRESS INDICATOR */}
-      <AnimatePresence>
-        {!isProgressDismissed && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, height: 0, paddingBottom: 0, paddingTop: 0 }}
-            transition={{ duration: 0.4 }}
-            className="sticky top-[52px] z-30 bg-white/95 backdrop-blur-md border-b border-rose-200/70 shadow-xs px-4 sm:px-8 py-2"
-          >
-            <div className="max-w-6xl mx-auto flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 font-serif text-[#6B2836]">
-                  <span className="relative flex h-2 w-2">
-                    {!isFullyLoaded ? (
-                      <>
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                      </>
-                    ) : (
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    )}
-                  </span>
-                  <span className="font-medium">
-                    {totalItemsCount === 0 || isDiscovering
-                      ? "Discovering memories…"
-                      : !isFullyLoaded
-                      ? `Memories loading… ${progressPercentage}%`
-                      : "All memories loaded ♡"}
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#8C5D66]">
-                  {totalItemsCount > 0 ? `${loadedCount} of ${totalItemsCount}` : "…"}
-                </div>
-              </div>
+      {/* GALLERY CONTENT WRAPPER */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+        {/* RESERVED SPACE FOR LOADING INDICATOR (GUARANTEES ZERO LAYOUT SHIFT) */}
+        <div className="w-full max-w-sm sm:max-w-md mx-auto h-11 flex items-center justify-center mb-4 relative">
+          <AnimatePresence>
+            {showIndicator && (
+              <motion.div
+                key="memory-progress-pill"
+                initial={
+                  prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }
+                }
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full px-4 py-2 rounded-2xl bg-white/90 backdrop-blur-md border border-rose-200/70 shadow-xs flex flex-col gap-1.5 pointer-events-none"
+              >
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 font-serif text-[#6B2836]">
+                    <span
+                      className={`inline-block w-1.5 h-1.5 rounded-full transition-colors duration-500 ${
+                        isFullyGathered ? "bg-emerald-500" : "bg-rose-500"
+                      }`}
+                    />
+                    <span className="font-medium tracking-wide">
+                      {isFullyGathered
+                        ? "All memories gathered ♡"
+                        : totalItemsCount === 0 || isDiscovering
+                        ? "Gathering your memories…"
+                        : `Gathering your memories… · ${progressPercentage}%`}
+                    </span>
+                  </div>
 
-              {/* Romantic Thin Animated Progress Bar */}
-              <div className="w-full h-1 bg-rose-100 rounded-full overflow-hidden relative">
-                {totalItemsCount === 0 || isDiscovering ? (
-                  <div className="h-full bg-gradient-to-r from-rose-400 via-pink-400 to-rose-400 w-1/3 animate-pulse rounded-full" />
-                ) : (
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-rose-600 via-pink-500 to-rose-400 rounded-full shadow-xs"
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${progressPercentage}%` }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
+                  <div className="text-[11px] font-mono text-[#8C5D66] tabular-nums">
+                    {totalItemsCount > 0 ? `${loadedCount} of ${totalItemsCount}` : "…"}
+                  </div>
+                </div>
+
+                {/* Refined Thin Progress Bar (2.5px with Subtle Rose Glow & Natural Transition) */}
+                <div className="w-full h-[2.5px] bg-rose-100/70 rounded-full overflow-hidden relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#BE185D] via-[#E11D48] to-[#FB7185] rounded-full"
+                    style={{
+                      width: `${progressPercentage}%`,
+                      transition: prefersReducedMotion
+                        ? "none"
+                        : "width 400ms cubic-bezier(0.16, 1, 0.3, 1)",
+                      boxShadow: "0 0 8px rgba(225, 29, 72, 0.22)",
+                    }}
                   />
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-10">
         {/* HEADER SECTION */}
         <header className="text-center max-w-2xl mx-auto space-y-4 mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-50 border border-rose-200/80 text-[11px] font-semibold tracking-[0.2em] text-[#8C3A4D] uppercase">
@@ -666,8 +723,32 @@ export default function OurMemoriesPage() {
           </div>
         </div>
 
+        {/* SERVER LOAD ERROR STATE */}
+        {!isDiscovering && loadError && mediaItems.length === 0 && (
+          <div className="py-16 text-center space-y-4 p-8 rounded-3xl bg-white border border-rose-200/90 shadow-sm max-w-md mx-auto">
+            <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto text-rose-600">
+              <Heart className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-serif text-lg text-[#3D1D24]">
+                Could not load our memories
+              </p>
+              <p className="text-xs text-[#875F66]">
+                {loadError}
+              </p>
+            </div>
+            <button
+              onClick={fetchMediaList}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#8C2337] hover:bg-[#781B2E] text-white text-xs font-medium tracking-wide shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
         {/* EMPTY STATE */}
-        {!isDiscovering && totalItemsCount > 0 && filteredItems.length === 0 && (
+        {!isDiscovering && !loadError && totalItemsCount > 0 && filteredItems.length === 0 && (
           <div className="py-24 text-center space-y-3 p-8 rounded-3xl bg-white border border-rose-200">
             <Heart className="w-10 h-10 text-rose-300 mx-auto" />
             <p className="font-serif text-lg text-[#3D1D24]">
@@ -679,7 +760,7 @@ export default function OurMemoriesPage() {
           </div>
         )}
 
-        {/* SKELETON PLACEHOLDERS DURING DISCOVERY */}
+        {/* CALM SKELETON PLACEHOLDERS DURING DISCOVERY */}
         {isDiscovering && totalItemsCount === 0 && (
           <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -688,31 +769,31 @@ export default function OurMemoriesPage() {
                 className="break-inside-avoid rounded-2xl overflow-hidden bg-white/70 border border-rose-100 p-2 shadow-2xs space-y-2"
               >
                 <div
-                  className="w-full rounded-xl bg-gradient-to-b from-rose-100/50 via-pink-50/70 to-rose-100/40 animate-pulse flex items-center justify-center"
+                  className="w-full rounded-xl bg-gradient-to-b from-rose-100/30 via-pink-50/40 to-rose-100/20 flex items-center justify-center"
                   style={{ aspectRatio: i % 2 === 0 ? "3/4" : "4/3" }}
                 >
-                  <Heart className="w-6 h-6 text-rose-300/50 fill-rose-200/40" />
+                  <Heart className="w-5 h-5 text-rose-300/40 fill-rose-200/20" />
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* MASONRY / EDITORIAL GRID WITH ZERO LAYOUT SHIFT (CLS PREVENTED) */}
+        {/* MASONRY / EDITORIAL GRID WITH ZERO LAYOUT SHIFT */}
         {filteredItems.length > 0 && (
           <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
             {filteredItems.map((item, index) => {
               const isVideo = item.type === "video";
-              const thumbUrl = `/api/memories/media/${item.id}?thumb=1`;
+              const thumbUrl = item.thumbUrl || `/api/memories/media/${item.id}?thumb=1`;
               const isItemLoaded = loadedMediaIds.has(item.id);
 
               return (
                 <motion.div
                   key={item.id}
-                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 14 }}
+                  initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-5%" }}
-                  transition={{ duration: 0.45, delay: (index % 6) * 0.04 }}
+                  transition={{ duration: 0.4, delay: (index % 6) * 0.03 }}
                   onClick={() => setActiveViewerIndex(index)}
                   className="group relative break-inside-avoid rounded-2xl overflow-hidden bg-white border border-rose-100/90 shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.015] cursor-pointer"
                 >
@@ -731,10 +812,10 @@ export default function OurMemoriesPage() {
                         aspectRatio: item.aspectRatio ? `${item.aspectRatio}` : "0.75",
                       }}
                     >
-                      {/* Elegant Romantic Skeleton Placeholder */}
+                      {/* Calm, Soft Placeholder Skeleton */}
                       {!isItemLoaded && (
-                        <div className="absolute inset-0 bg-gradient-to-b from-rose-100/40 via-pink-50/60 to-rose-100/30 animate-pulse flex items-center justify-center">
-                          <Heart className="w-5 h-5 text-rose-300/50 fill-rose-200/30" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-rose-100/30 via-pink-50/40 to-rose-100/20 flex items-center justify-center">
+                          <Heart className="w-5 h-5 text-rose-300/40 fill-rose-200/20" />
                         </div>
                       )}
 
@@ -847,7 +928,7 @@ export default function OurMemoriesPage() {
               {activeMedia.type === "video" ? (
                 <div className="relative max-h-[85vh] max-w-full flex items-center justify-center rounded-2xl overflow-hidden bg-black shadow-2xl">
                   <video
-                    src={`/api/memories/media/${activeMedia.id}`}
+                    src={activeMedia.mediaUrl || `/api/memories/media/${activeMedia.id}`}
                     controls
                     autoPlay
                     playsInline
@@ -858,7 +939,7 @@ export default function OurMemoriesPage() {
                 <div className="relative max-h-[85vh] max-w-full flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/memories/media/${activeMedia.id}`}
+                    src={activeMedia.mediaUrl || `/api/memories/media/${activeMedia.id}`}
                     alt="Lena and Sanoof private memory"
                     className="max-h-[85vh] max-w-full object-contain rounded-2xl"
                   />
