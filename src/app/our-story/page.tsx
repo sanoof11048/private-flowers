@@ -21,8 +21,6 @@ import {
   Pause,
   SkipForward,
   SkipBack,
-  Briefcase,
-  Smile,
 } from "lucide-react";
 
 interface SongTrack {
@@ -52,13 +50,29 @@ interface LightboxImage {
   location?: string;
 }
 
+export interface TimelineMediaItem {
+  id?: string;
+  type: "image" | "video";
+  src: string;
+  alt?: string;
+  caption?: string;
+}
+
 export interface JournalMemoryEntry {
   id: string;
   date: string;
   title: string;
   storyText?: string;
+  quote?: string;
+  quoteLabel?: string;
+  narrative?: string[];
   photo?: string;
+  fallbackPhoto?: string;
+  photoCaption?: string;
+  photoLocation?: string;
+  photoBadge?: string;
   tag?: string;
+  media?: TimelineMediaItem[];
 }
 
 // Reusable chronicle entries in chronological order — easily extendable as new memories are made!
@@ -110,6 +124,13 @@ export const JOURNAL_TIMELINE_ENTRIES: JournalMemoryEntry[] = [
     tag: "First meet",
   },
   {
+    id: "kinder-unicorn",
+    date: "October 9, 2026",
+    title: "Chocolates & the tiny unicorn",
+    storyText: "A sweet exchange from our first drive — and a little keepsake from you.",
+    tag: "Keepsake",
+  },
+  {
     id: "call-51",
     date: "October 12, 2026",
     title: "Our first 51-minute call",
@@ -122,6 +143,67 @@ export const JOURNAL_TIMELINE_ENTRIES: JournalMemoryEntry[] = [
     title: "Your unexpected question & “YES. OBVIOUSLY.”",
     storyText: "When you asked me to be your boyfriend at 2:27 PM.",
     tag: "Official",
+  },
+  {
+    id: "birthday-oct-25",
+    date: "October 25, 2026",
+    title: "The Birthday Wish I'll Keep Forever ❤️",
+    storyText:
+      "Receiving your heartfelt birthday message and your prayers that we always stay together and support each other made this day unforgettable.",
+    quote:
+      "Happy Birthday, monusey🥹❤️🎂 You’re one of the most special people in my life, and I’m so lucky to have you. May Allah bless you with lots of happiness, success, and everything you wish for. 🫶🏻💗 I hope all your dreams come true, and I pray we always stay together and support each other. Thank you for being a part of my life. Again happy birthday ikakkaa!!😚",
+    quoteLabel: "Lena's Birthday Wish · October 25, 2026",
+    narrative: [
+      "Receiving this message on October 25 meant more to me than any ordinary birthday greeting ever could. To read your words calling me one of the most special people in your life, praying that we always stay together and support each other, and thanking me for being part of your journey was a feeling I will hold onto forever.",
+      "Not so long ago, we were two strangers passing by on a bus, and I was just hoping for a chance to know your name. Now, on this birthday, having your love, your prayers, and your genuine warmth with me made every tomorrow feel brighter.",
+    ],
+    media: [
+      {
+        id: "bday-1",
+        type: "image",
+        src: "/images/bday_wish_1.PNG",
+        alt: "Lena's heartfelt birthday message screenshot",
+        caption: "Her birthday wish · October 25, 2026",
+      },
+      {
+        id: "bday-2",
+        type: "video",
+        src: "/images/bday_wish_2.MP4",
+        caption: "Birthday moment · Video 1",
+      },
+      {
+        id: "bday-3",
+        type: "video",
+        src: "/images/bday_wish_3.MP4",
+        caption: "Birthday moment · Video 2",
+      },
+      {
+        id: "bday-4",
+        type: "video",
+        src: "/images/bday_wish_4.MOV",
+        caption: "Birthday moment · Video 3",
+      },
+    ],
+    tag: "My Birthday",
+  },
+  {
+    id: "car-date-oct-29",
+    date: "October 29, 2026",
+    title: "The Day We Finally Got Closer ❤️",
+    storyText:
+      "Walking together along the beach in the sunlight without a single touch, then finding our first shoulder hug, our first kiss, and playful bites in the quiet of the car.",
+    narrative: [
+      "At around 11:00 AM, we walked together along the beach under the warm morning sunlight. We were side by side, sharing the open air and the quiet rhythm of the waves, yet during that whole walk, there were no touches between us—just the simple, peaceful presence of being together.",
+      "Later, when we were back inside the quiet space of the car, everything shifted into something closer and more personal. That was where we shared our first shoulder hug, pulling each other close in a way we never had before.",
+      "And then came our first kiss—soft, tender, and the moment where all the time we had spent wondering and waiting simply melted away. Somewhere between our kisses and the little playful bites we traded with each other, the day became one of our most treasured memories. It was the day the quiet distance between us completely disappeared.",
+    ],
+    photo: "/images/oct_29_meet.webp",
+    fallbackPhoto: "/images/oct_29_meet.jpg",
+    photoCaption:
+      "October 29, 2026 · The Day We Finally Got Closer · Beach walk, shoulder hug, our first kiss & playful bites",
+    photoLocation: "Beach & Car Date",
+    photoBadge: "Our Real Photograph",
+    tag: "Got Closer",
   },
 ];
 
@@ -381,7 +463,7 @@ export default function OurStoryPage() {
             </div>
             <div className="flex items-center gap-2 text-xs sm:text-sm font-serif italic text-[#875F66]">
               <Calendar className="w-3.5 h-3.5 text-rose-400" />
-              <span>December 2023 — From a quiet glance to forever</span>
+              <span>December 2023 — Where our quiet story began</span>
             </div>
           </motion.div>
 
@@ -535,50 +617,34 @@ export default function OurStoryPage() {
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
                 Lena, I don&apos;t know if you remember anything about that day.
-                Maybe it was just another ordinary day for you.
+                Maybe it was just another ordinary trip for you.
               </p>
               <p>
                 But I remember seeing you on Puttekatt.
               </p>
               <p>
-                I didn&apos;t know your name. I didn&apos;t know anything about you.
-                I had no idea who you were or what kind of person you would turn out to be.
-              </p>
-              <p>
-                I had only seen you.
+                I had no idea who you were, what your name was, or what kind of person you would turn out to be. I had only caught sight of you through the crowd.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                But for some reason, I wanted to see you again.
+                Yet for some reason, I couldn&apos;t stop hoping to see you again.
               </p>
               <p>
-                After that, whenever I had the chance, I&apos;d look for you. Sometimes I would wait, hoping I might see you somewhere.
+                After that, whenever I had the chance, I&apos;d look around for you. Sometimes I would wait, just hoping you might pass by.
               </p>
               <p>
-                You didn&apos;t even know I was doing that. You weren&apos;t looking for me. You didn&apos;t have a reason to.
+                You didn&apos;t know I was looking. You weren&apos;t watching for me—you had no reason to.
               </p>
               <p>
-                And that&apos;s the part that feels so strange when I look back.
-              </p>
-              <p>
-                I was becoming curious about someone who didn&apos;t even know my name.
-              </p>
-              <p>
-                I wondered who you were. What your name was. What it would be like to actually talk to you.
-              </p>
-              <p>
-                Back then, I didn&apos;t know any of the things I know about you today.
+                And that&apos;s what feels so surreal looking back. I was holding onto curiosity about a girl who didn&apos;t even know I existed yet.
               </p>
               <p className="font-serif text-base sm:text-lg text-[#6B2433] italic pl-4 border-l-2 border-rose-300 leading-relaxed">
-                I didn&apos;t know your voice, your favourite little things, or how our conversations would eventually become a part of my everyday life.
+                Back then, I didn&apos;t know your voice, your laugh, or how your messages would one day become the highlight of my days.
               </p>
               <p>
-                I only knew that I wanted to know you.
-              </p>
-              <p>
-                And that was enough to make me remember you.
+                I only knew that I wanted to know you. And that was enough to make sure you weren&apos;t just another face I forgot.
               </p>
               <div className="pt-3 border-t border-rose-100 font-serif italic text-base sm:text-lg text-[#7A2436] text-center font-medium">
-                “You were a stranger then, Lena. But you weren&apos;t just another face I forgot.”
+                “You were a stranger then, Lena. But you were never just another stranger to me.”
               </div>
             </div>
           </motion.div>
@@ -653,32 +719,32 @@ export default function OurStoryPage() {
             </div>
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>Then came the day I finally tried to talk to you.</p>
-              <p>I asked your name.</p>
               <p>
-                That&apos;s all I wanted to know. Your name. Just one small thing about the girl I&apos;d been hoping to see again.
+                Then came the day I finally gathered the courage to walk up to you at the school gate.
+              </p>
+              <p>
+                All I wanted was one simple thing: to know your name.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                And you said, &apos;Perilla.&apos;
+                And your answer was simply: &apos;Perilla.&apos;
               </p>
               <p className="font-medium text-[#732B3B]">
-                I still can&apos;t believe that was our first little conversation. 😭
+                I still laugh thinking about it—our very first conversation, and you told me you didn&apos;t have a name. 😭
               </p>
               <p>
-                I had spent so much time building up the courage to ask you one simple question, and somehow I still walked away without knowing your name.
+                I had spent days building up the nerve for that moment, and I still walked away without a clue what to call you.
               </p>
               <p>
-                At the time, I didn&apos;t know how to turn that moment into another conversation. Then I found out you already had a boyfriend.
-              </p>
-              <p>So I stepped back.</p>
-              <p>
-                I thought that was it. I thought I had missed my chance, and I tried to move on.
+                Before I could even figure out how to speak to you again, I found out you were in a relationship.
               </p>
               <p>
-                I didn&apos;t know that one day, you would be the person asking me about being your boyfriend.
+                So I stepped back quietly. I told myself that was that, and tried to move on.
+              </p>
+              <p className="font-serif text-base sm:text-lg text-[#782336] italic pl-4 border-l-2 border-rose-300">
+                I never could have imagined that years later, you would be the one asking me to be your boyfriend.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B] pt-1">
-                Honestly, if someone had told me that back then, I probably wouldn&apos;t have believed them.
+                If someone had told me that at the school gate, I would have thought they were joking. But that was only the very first chapter of us.
               </p>
             </div>
           </motion.div>
@@ -700,29 +766,17 @@ export default function OurStoryPage() {
             </h2>
 
             <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-white/90 to-rose-50/50 border border-rose-200/80 shadow-sm space-y-4 text-sm sm:text-base text-[#4A353A] leading-relaxed text-left">
-              <p className="font-serif italic text-base text-[#732B3B]">
-                You didn&apos;t know how curious I was about you.
-              </p>
-              <p className="font-serif italic text-base text-[#732B3B]">
-                You didn&apos;t know how much courage it took for me to approach you.
-              </p>
-              <p className="font-serif italic text-base text-[#732B3B]">
-                You didn&apos;t know that I remembered that little moment long after it was over.
+              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
+                Back then, you had no idea how curious I was, how much nerve it took to walk up to you, or how long I remembered that little exchange after it ended.
               </p>
               <p>
-                And that&apos;s okay. You didn&apos;t owe me anything. We were just two people who didn&apos;t know each other yet.
-              </p>
-              <p>
-                I&apos;m not telling you these things because I want you to feel bad about the past.
+                And that was okay. You didn&apos;t owe me anything—we were still two strangers living completely separate lives.
               </p>
               <p className="font-serif text-base sm:text-lg text-[#782336] italic pl-4 border-l-2 border-rose-300">
-                I&apos;m telling you because now I finally get to share that past with you.
-              </p>
-              <p>
-                You get to know the little things you never knew about me.
+                I&apos;m not telling you this so you feel bad about how it started. I&apos;m telling you because now, finally, I get to share my side of our story with you.
               </p>
               <p className="font-medium text-[#7A2436] pt-1">
-                And I get to tell you the story from my side.
+                You get to see all the quiet moments where you were already on my mind, long before we ever spoke again.
               </p>
             </div>
 
@@ -783,31 +837,23 @@ export default function OurStoryPage() {
             </div>
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>Then, on April 20, 2026, I liked your Instagram story.</p>
-              <p>You liked mine too.</p>
               <p>
-                Then there were notes, close-friends stories, and more little interactions.
+                More than two years passed. Then, on April 20, 2026, I took a quiet chance and liked your Instagram story.
               </p>
               <p>
-                Maybe they were ordinary things. I knew they didn&apos;t necessarily mean you liked me.
+                You liked mine back.
+              </p>
+              <p>
+                Soon after, there were story replies, mutual notes, and close-friends stories. Little digital breadcrumbs that quietly brought you back into my world.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                But I was happy to see you again.
+                I didn&apos;t assume it meant you liked me. But every time your name popped up on my screen, my entire day got a little brighter.
               </p>
               <p>
-                I found myself noticing your name on my screen. I liked that, in a small way, we were becoming familiar with each other.
+                I still didn&apos;t know if we&apos;d ever truly talk. I just appreciated those little glimpses into your life and the quiet familiarity growing between us.
               </p>
-              <p>
-                I still didn&apos;t know if we&apos;d ever really talk.
-              </p>
-              <p>
-                I was curious about you, but I didn&apos;t want to assume anything.
-              </p>
-              <p>
-                I just enjoyed those little moments for what they were.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336] pt-1">
-                Looking back, it&apos;s funny how something as small as a story like can become part of the beginning of a much bigger story.
+              <p className="font-serif text-base sm:text-lg text-[#782336] italic pl-4 border-l-2 border-rose-300 pt-1">
+                It&apos;s funny how something as effortless as a story like can become the spark that reignites an entire story.
               </p>
             </div>
           </motion.div>
@@ -857,52 +903,31 @@ export default function OurStoryPage() {
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
               <p>
-                Do you know how many times I probably thought about texting you before I actually did it?
+                You have no idea how many drafts I deleted before I finally sent a message.
               </p>
               <p>
-                I kept thinking about what might happen if I tried.
+                I kept overthinking every possibility—what if you left me on read? What if I made things awkward? I was bracing for disappointment before I even hit send.
               </p>
               <p>
-                Maybe you&apos;d reply. Maybe you wouldn&apos;t. Maybe I&apos;d end up feeling disappointed all over again.
-              </p>
-              <p>
-                I was preparing myself for rejection before I&apos;d even sent a message.
-              </p>
-              <p>
-                And then, on August 23 at 6:57 PM, I finally replied to your note.
+                Then, on August 23 at exactly 6:57 PM, you posted a note, and I threw caution away.
               </p>
               <p className="font-serif text-2xl italic text-[#732B3B] font-semibold">
                 &apos;Hi.&apos;
               </p>
               <p className="font-medium text-[#732B3B]">
-                One word. That&apos;s what I came up with after all that thinking. 😭
-              </p>
-              <p>
-                But I&apos;m so glad I sent it.
+                All that overthinking, and that was the grand opening line I managed. 😭
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                Because we started talking.
+                Yet it changed everything. Because you replied.
               </p>
               <p>
-                And then we kept talking.
+                One message turned into ten, ten turned into conversations that stretched into the night, and soon our streak became a daily habit neither of us wanted to break.
               </p>
               <p>
-                Our conversations became a part of our days. The streak continued. We kept finding reasons to message each other again.
-              </p>
-              <p>
-                I started getting to know you instead of just wondering about you.
-              </p>
-              <p>
-                That was the difference.
-              </p>
-              <p>
-                Before, I had a thousand questions about the girl I&apos;d seen on a bus.
-              </p>
-              <p>
-                Now, I could actually talk to her.
+                For years, I had a thousand questions about the girl from Puttekatt. Now, I was finally getting to learn her answers.
               </p>
               <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic pt-1 border-t border-rose-100">
-                And little by little, you stopped being just someone I was curious about. You became someone I genuinely cared about.
+                Little by little, you stopped being someone I wondered about from a distance. You became someone I looked forward to speaking with every single day.
               </p>
             </div>
           </motion.div>
@@ -937,7 +962,7 @@ export default function OurStoryPage() {
                     src: "/images/oct_8_visit.webp",
                     alt: "October 8, 2026 - When Sanoof and Lena saw each other again along the road",
                     caption:
-                      "I had spent so long hoping to see you. On October 9, I finally got to spend time with you.",
+                      "October 8, 2026 · Roadside whispers · Hearing your voice in person again.",
                     date: "October 8, 2026",
                     location: "Roadside Whispers",
                   })
@@ -947,7 +972,7 @@ export default function OurStoryPage() {
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-20 h-5 bg-amber-100/80 border border-amber-200/60 rounded-xs -rotate-2 shadow-xs z-10" />
 
                 <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-rose-50">
-                  <picture>
+                  <picture className="relative block w-full h-full">
                     <source srcSet="/images/oct_8_visit.webp" type="image/webp" />
                     <source srcSet="/images/oct_8_visit.jpg" type="image/jpeg" />
                     <Image
@@ -975,62 +1000,29 @@ export default function OurStoryPage() {
             </div>
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>I still remember October 8.</p>
-              <p>I was in my car, and you were walking along the road.</p>
               <p>
-                After all that time, all those Instagram interactions, and all those messages, we were finally seeing each other in real life again.
+                I was in my car, and you were walking along the road.
+              </p>
+              <p>
+                After months of screens and typed messages, there you were—standing in front of me in real life.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                And we spoke.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                Quietly. Almost in whispers.
+                And we spoke. Softly. Almost in whispers.
               </p>
               <p>
-                It&apos;s such a small thing when I explain it like that, isn&apos;t it?
-              </p>
-              <p>Two people exchanging a few words on the road.</p>
-              <p className="font-serif text-base text-[#782336] italic pl-4 border-l-2 border-rose-300">
-                But to me, it felt different from every message we&apos;d sent.
+                On the surface, it was just two people pausing by the roadside for a brief exchange. But to me, hearing your physical voice right there felt completely different from any text on a phone.
               </p>
               <p>
-                When I texted you, I had time to read your words and think about my reply.
+                It was brief, a little hurried, and maybe even slightly awkward. I don&apos;t need to pretend it was a cinematic movie scene.
               </p>
-              <p>
-                But there, you were actually in front of me.
+              <p className="font-serif text-base sm:text-lg text-[#782336] italic pl-4 border-l-2 border-rose-300">
+                It was real. And after waiting so long just to cross paths, those quiet whispers meant the world to me.
               </p>
-              <p>
-                I could hear you. I could see you. We were talking in the same place, at the same time.
-              </p>
-              <p>
-                I don&apos;t even know if you saw me properly. I know I got to see you, but the moment was brief, and we were both speaking quietly.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                Still, I remember those whispers.
-              </p>
-              <p>
-                I had once hoped just to catch a glimpse of you. Now, after all those years, we were exchanging words.
-              </p>
-              <p>
-                I don&apos;t need to pretend it was some perfect movie scene.
-              </p>
-              <p>
-                It was simple. A little awkward, maybe. Just a real moment between two people who had finally started getting to know each other.
-              </p>
-              <p>
-                But I was happy that it happened.
-              </p>
-              <p>
-                And the next day, we planned to meet properly.
-              </p>
-              <p>
-                For once, I didn&apos;t have to hope that I&apos;d happen to see you somewhere.
-              </p>
-              <p className="font-medium text-[#7A2436]">
-                We had actually made a plan.
+              <p className="pt-1">
+                Best of all, when that brief moment ended, we didn&apos;t have to leave our next encounter to chance. We agreed to meet properly the very next morning.
               </p>
               <div className="pt-3 border-t border-rose-100 font-serif italic text-base sm:text-lg text-[#7A2436] text-center font-medium">
-                “I had spent so long hoping to see you. On October 9, I finally got to spend time with you.”
+                “I had spent so long hoping to see you. The next day, I finally got to spend time with you.”
               </div>
             </div>
           </motion.div>
@@ -1079,7 +1071,7 @@ export default function OurStoryPage() {
                 <div className="absolute -top-3 -right-3 w-16 h-6 bg-amber-100/90 border border-amber-200 rounded-xs rotate-45 shadow-xs z-10" />
 
                 <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-rose-50">
-                  <picture>
+                  <picture className="relative block w-full h-full">
                     <source srcSet="/images/oct_9_visit.webp" type="image/webp" />
                     <source srcSet="/images/oct_9_visit.jpg" type="image/jpeg" />
                     <Image
@@ -1113,63 +1105,26 @@ export default function OurStoryPage() {
 
             {/* Deep Narrative of the Car Date */}
             <div className="max-w-2xl mx-auto bg-white/85 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>I picked you up from Chemmad in my car.</p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                Our first car date.
+              <p>
+                I picked you up from Chemmad in my car for our very first car date.
               </p>
               <p>
-                I wish I could explain exactly why that meant so much to me without making it sound bigger than it was.
+                It wasn&apos;t about going somewhere extravagant or trying to put on an elaborate show. It was simply about having uninterrupted time beside you.
               </p>
               <p>
-                It wasn&apos;t about going somewhere expensive or planning the perfect date.
-              </p>
-              <p className="font-medium text-[#732B3B]">
-                It was about finally getting to spend time with you.
-              </p>
-              <p>
-                We stopped at different places. We talked about so many things. We kept talking until it was time for me to drop you off.
-              </p>
-              <p>
-                For a long time, I had only been able to wonder what it would be like to know you.
-              </p>
-              <p>
-                Now I was actually sitting with you, talking to you, listening to you, and discovering more about the person you really were.
+                We drove, we made little stops along the way, and we talked about everything that came to mind. For so long, I had only been able to imagine what you were like; now you were right there in the passenger seat, sharing your thoughts, your smile, and your quirks in real time.
               </p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                I wasn&apos;t just curious about you anymore.
+                The time slipped away far too fast. Before I knew it, it was 12:20 PM, and I was dropping you off at the Chemmad bus stand.
               </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                I was getting to know you.
-              </p>
-              <p>
-                And I liked that. I liked having that time with you.
+              <p className="font-serif text-base sm:text-lg text-[#782336] italic pl-4 border-l-2 border-rose-300">
+                The irony still makes me smile—our story began on a bus back in 2023, and one of our fondest early memories ended at a bus stand.
               </p>
               <p>
-                Then it was 12:20 PM, and I dropped you at Chemmad bus stand.
+                Only this time, you weren&apos;t a stranger I hoped to catch a glimpse of. You were someone I had just spent an unforgettable morning with.
               </p>
-              <p className="font-serif text-base text-[#782336] italic pl-4 border-l-2 border-rose-300">
-                The funny thing is that our story started with a bus, and one of my favourite early memories ended at a bus stand.
-              </p>
-              <p>
-                But everything felt different now.
-              </p>
-              <p>
-                Back then, you were someone I hoped to see.
-              </p>
-              <p>
-                That day, you were someone I had actually spent my time with.
-              </p>
-              <p>
-                We even had our first selfie together.
-              </p>
-              <p>
-                I could look at that picture and remember that the day really happened.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#8C1D32] pt-1">
-                I got to meet you properly, Lena.
-              </p>
-              <p className="font-medium text-[#7A2436]">
-                And I was genuinely happy about that.
+              <p className="pt-1">
+                And we had our first selfie together—tangible proof that the morning was real, and that we were finally writing this story together.
               </p>
             </div>
           </motion.div>
@@ -1221,152 +1176,26 @@ export default function OurStoryPage() {
             </div>
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>I brought you chocolates.</p>
-              <p>And you gave me a tiny unicorn from Kinder Joy. 🦄</p>
-              <p>I know, it&apos;s just a little toy.</p>
+              <p>I brought you chocolates for our drive.</p>
+              <p>And in return, you handed me a tiny unicorn from a Kinder Joy egg. 🦄</p>
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                But it&apos;s from you.
-              </p>
-              <p className="font-medium text-[#732B3B]">
-                That&apos;s what makes it special to me.
+                To anyone else, it&apos;s just a tiny plastic toy. But to me, it became an immediate treasure—because it came from you.
               </p>
               <p>
-                I like that our memories aren&apos;t made up of huge, expensive things. They&apos;re made up of random little details that probably wouldn&apos;t mean much to anyone else.
+                I love that our memories aren&apos;t built on flashy, expensive gestures. They&apos;re woven out of little personal moments that only make sense to the two of us.
               </p>
-              <p className="font-serif italic text-base text-[#782336] pl-4 border-l-2 border-rose-300">
-                The chocolates I gave you. The tiny unicorn you gave me. The first selfie. The places we stopped. The time I dropped you off.
+              <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic pl-4 border-l-2 border-rose-300">
+                The chocolates, the tiny unicorn, the places we pulled over, the first selfie, and watching the clock count down to 12:20 PM. None of them needed to be grand to be unforgettable.
               </p>
-              <p>These are the things I want to remember.</p>
-              <p>Not because every single thing was extraordinary.</p>
-              <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic font-medium pt-1">
-                Because they happened with you.
+              <p className="font-medium text-[#7A2436] pt-1">
+                They were special simply because they were shared with you.
               </p>
             </div>
           </motion.div>
         </section>
 
         {/* =========================================================================
-            SECTION 9 — THE FIRST MOVES WERE ALMOST ALWAYS MINE
-            ========================================================================= */}
-        <section className="relative pt-20 sm:pt-28 text-center">
-          <motion.div {...animFadeUp} className="max-w-xl mx-auto space-y-6">
-            <div className="flex items-center justify-center">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100/70 border border-rose-200/60 text-xs font-serif font-medium text-[#7A2B3B]">
-                <Smile className="w-3.5 h-3.5 text-rose-500" />
-                Honest confession
-              </span>
-            </div>
-
-            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium text-[#3D1D24]">
-              I think you can guess who kept making the first move. 😭
-            </h2>
-
-            <div className="p-6 sm:p-8 rounded-2xl bg-white/80 backdrop-blur-xs border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A] text-left">
-              <p>I have to admit, Lena, I made most of the first moves.</p>
-              <div className="space-y-2 pl-4 border-l-2 border-rose-300 font-serif italic text-[#732B3B]">
-                <p>I was the one who noticed you first.</p>
-                <p>I was the one who kept hoping to see you.</p>
-                <p>I was the one who finally came up to you and asked your name.</p>
-                <p>I was the one who started looking for little ways to reconnect.</p>
-                <p>I was the one who liked your story, waited for the right moment, and finally sent that first &apos;Hi&apos;.</p>
-                <p>I was the one who kept trying to understand whether there could ever be something between us.</p>
-              </div>
-              <p>And even when I was nervous, I still tried.</p>
-              <p>Not because I expected anything from you.</p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                I just wanted the chance to know you.
-              </p>
-              <p>
-                Of course, I was scared. I didn&apos;t want to embarrass myself, and I didn&apos;t want to face another rejection.
-              </p>
-              <p>
-                But I kept trying because getting to know you mattered to me.
-              </p>
-              <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic font-semibold pt-2 border-t border-rose-100">
-                And then, after all those first moves from my side, you made the move I never expected.
-              </p>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================================
-            SECTION 10 — MY WORK, MY BUSINESS, AND THE TIME I STILL WANT FOR YOU
-            ========================================================================= */}
-        <section className="relative pt-20 sm:pt-28">
-          <motion.div
-            {...animFadeUp}
-            className="max-w-2xl mx-auto p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-white via-rose-50/50 to-amber-50/30 border-2 border-rose-200 shadow-lg space-y-6"
-          >
-            <div className="flex items-center justify-center">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-100/90 text-xs font-serif font-medium text-[#732B3B] border border-rose-200">
-                <Briefcase className="w-3.5 h-3.5 text-rose-500" />
-                A Promise of Care
-              </span>
-            </div>
-
-            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-center font-medium text-[#3D1D24]">
-              My work, my business, and the time I still want for you
-            </h2>
-
-            <div className="space-y-4 text-sm sm:text-base text-[#4A353A] leading-relaxed">
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                Lena, there&apos;s something else I want you to understand about me.
-              </p>
-              <p>
-                I have work to do. I have my business, my responsibilities, and things I need to build for my future.
-              </p>
-              <p>
-                Some days, things might get busy. I might reply late. I might miss a day of texting or calling because I have too much going on.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336] pl-4 border-l-2 border-rose-300">
-                And I don&apos;t want you to mistake that for me caring less about you.
-              </p>
-              <p className="font-medium text-[#732B3B]">
-                Even on the busiest days, you still matter to me.
-              </p>
-              <p>
-                I might not always be able to give you every minute of my day, but I want to make time for you. I want to come back to our conversations. I want to hear about your day, tell you about mine, and keep sharing those little parts of our lives.
-              </p>
-              <p>
-                I don&apos;t want to make promises that sound beautiful today and become impossible tomorrow.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                I want to show you, through my actions, that you&apos;re important to me.
-              </p>
-              <div className="space-y-2 p-4 rounded-xl bg-white/90 border border-rose-100 text-sm sm:text-base font-serif italic text-[#632330]">
-                <p>If I get busy, it doesn&apos;t mean I&apos;ve forgotten you.</p>
-                <p>If I go quiet because of work, it doesn&apos;t mean my feelings have suddenly changed.</p>
-                <p>And if there are days when I can&apos;t talk as much as I&apos;d like, I still want you to know that I&apos;m here.</p>
-              </div>
-              <p>
-                I will wait for you. I will make time for you. And I want us to understand each other, even on the days when life gets busy.
-              </p>
-              <p>
-                I can&apos;t promise that I&apos;ll always be available every second.
-              </p>
-              <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic font-semibold">
-                But I can promise that I don&apos;t want you to feel like you have to compete with my work for a place in my life.
-              </p>
-              <p>
-                I want to build my future, and I want to keep making space for you in it.
-              </p>
-              <p>
-                We both have our own lives, our own responsibilities, and our own difficult days.
-              </p>
-              <p>
-                I want us to support each other through all of that.
-              </p>
-              <p>Not just when everything is easy.</p>
-              <p>Not just when we have hours to talk.</p>
-              <div className="pt-3 border-t border-rose-200 text-center font-serif text-base sm:text-lg italic text-[#8C1D32] font-medium">
-                “Even when life gets busy, I still want it to be us, choosing to understand each other and finding our way back to one another.”
-              </div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================================
-            SECTION 11 — OCTOBER 12: OUR FIRST PROPER CALL
+            SECTION 9 — OCTOBER 12: OUR FIRST PROPER CALL
             ========================================================================= */}
         <section className="relative pt-20 sm:pt-28">
           <motion.div {...animFadeUp} className="space-y-6">
@@ -1428,36 +1257,28 @@ export default function OurStoryPage() {
             </div>
 
             <div className="max-w-xl mx-auto bg-white/80 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-rose-100/90 shadow-sm leading-relaxed space-y-4 text-sm sm:text-base text-[#4A353A]">
-              <p>Then came our first proper call.</p>
-              <p>October 12. 11:46 AM.</p>
+              <p>
+                Three days after our first car date came our first real phone call.
+              </p>
               <p className="font-serif text-xl sm:text-2xl italic text-[#732B3B] font-semibold">
-                Fifty-one minutes.
+                October 12 · 11:46 AM · 51 minutes.
               </p>
               <p>
-                It&apos;s funny how a number can become a memory when it&apos;s attached to someone you care about.
+                It&apos;s funny how a specific number of minutes becomes unforgettable the moment it&apos;s spent with someone you adore.
               </p>
               <p>
-                We had already been texting, but hearing each other&apos;s voices was another step.
+                Texting had connected us, but hearing your voice right in my ear—laughing, pausing, and talking without a screen in between—brought an entirely new closeness.
               </p>
-              <p>
-                For those 51 minutes, we had time to talk and share a little more of ourselves.
-              </p>
-              <p>
-                I don&apos;t need to turn that call into a dramatic moment.
-              </p>
-              <p>
-                I&apos;m happy simply remembering that it happened.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336] pt-1 border-t border-rose-100">
-                It was another part of us getting closer, one conversation at a time.
+              <p className="font-serif italic text-base sm:text-lg text-[#782336] pl-4 border-l-2 border-rose-300">
+                There was no need for dramatic declarations. Just 51 effortless minutes of listening to each other, realizing that talking to you had become my favourite part of the day.
               </p>
             </div>
           </motion.div>
         </section>
 
         {/* =========================================================================
-            SECTION 12 — OCTOBER 21: THE ONE FIRST MOVE THAT CAME FROM YOU
-            (THE EMOTIONAL CLIMAX OF THE ENTIRE STORY)
+            SECTION 10 — OCTOBER 21: THE ONE FIRST MOVE THAT CAME FROM YOU
+            (THE EMOTIONAL CLIMAX OF OUR STORY)
             ========================================================================= */}
         <section className="relative pt-24 sm:pt-36">
           <motion.div
@@ -1552,7 +1373,9 @@ export default function OurStoryPage() {
                 <p>
                   You have no idea how special that feels when I think about where we started.
                 </p>
-                <p>I made the first move so many times.</p>
+                <p>
+                  I had made the first moves for so long—noticing you on Puttekatt, walking up to you at the gate, liking your story, and sending that nervous &apos;Hi&apos;.
+                </p>
                 <p className="font-serif text-lg sm:text-xl text-[#8C1D32] font-semibold">
                   But that final move was yours.
                 </p>
@@ -1574,7 +1397,7 @@ export default function OurStoryPage() {
         </section>
 
         {/* =========================================================================
-            SECTION 13 — A LITTLE ABOUT TOMORROW (SUBTLE FUTURE & AMBITION)
+            SECTION 11 — A LITTLE ABOUT OUR FUTURE
             ========================================================================= */}
         <section className="relative pt-20 sm:pt-28">
           <motion.div
@@ -1588,43 +1411,46 @@ export default function OurStoryPage() {
               </span>
             </div>
 
-            <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-center font-medium text-[#3D1D24]">
-              A little about tomorrow
-            </h2>
+            <div className="text-center space-y-1">
+              <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl font-medium text-[#3D1D24]">
+                A little about our future
+              </h2>
+              <p className="font-serif italic text-sm sm:text-base text-[#8C3A4D]">
+                The life we hope to build together
+              </p>
+            </div>
 
             <div className="space-y-4 text-sm sm:text-base text-[#4A353A] leading-relaxed">
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                There&apos;s still so much I want to do in life. I have dreams to chase, work to do, and a lot to prove to myself.
+                There&apos;s still so much ahead of us in life. We both have our own dreams to chase, work to do, and responsibilities we take seriously.
               </p>
               <p>
-                I want to build a life that I&apos;m proud of, and sometimes, when I imagine the days ahead, I find myself thinking about you too.
+                The life we hope to build together isn&apos;t about dramatic promises—it&apos;s about growing side by side, learning from every challenge, and being there for each other on good days and difficult ones alike.
               </p>
               <p>
-                I don&apos;t know exactly what life has planned for us. But I know I want to keep growing, work hard, and become someone who can share good days with you and face the difficult ones beside you.
+                We both have busy lives. I have my work and business, and there will be times when things get hectic, when replies might be late, or when we cannot talk as much as we&apos;d like.
               </p>
-              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 border border-rose-100 space-y-2 font-serif italic text-sm sm:text-base text-[#632330]">
-                <p>
-                  I have dreams and responsibilities, and I take them seriously.
-                </p>
-                <p>
-                  I want to become a better version of myself, not just for a relationship, but for my own life too.
-                </p>
-                <p>
-                  I cannot predict how life will go, but I can choose to work hard, learn from setbacks, and keep improving.
-                </p>
-              </div>
               <p className="font-serif italic text-base sm:text-lg text-[#782336] pl-4 border-l-2 border-rose-300">
-                I want us both to grow, achieve our dreams, and be happy with the people we&apos;re becoming.
+                I never want you to mistake that for caring less. You will never have to compete with work for a place in my life.
+              </p>
+              <p className="font-medium text-[#732B3B]">
+                Even on the busiest days, what matters is that we choose each other—talking honestly, staying patient, and always finding our way back to one another.
+              </p>
+              <p>
+                We cannot predict everything life will bring, but we can choose to work hard, learn from setbacks, and keep supporting each other as we grow.
+              </p>
+              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
+                I want us both to achieve our dreams for our future, and be genuinely happy with the people we&apos;re becoming together.
               </p>
               <div className="pt-3 border-t border-rose-200 text-center font-serif text-base sm:text-lg italic text-[#8C1D32] font-medium">
-                “I just want you to know that, when I think about the days ahead, you have a place in my thoughts.”
+                “Where we hope life takes us together, having you by my side is what will make every tomorrow feel bright.”
               </div>
             </div>
           </motion.div>
         </section>
 
         {/* =========================================================================
-            SECTION 14 — THE LETTER I WANT YOU TO READ SLOWLY
+            SECTION 12 — THE LETTER I WANT YOU TO READ SLOWLY
             ========================================================================= */}
         <section className="relative pt-24 sm:pt-36">
           <motion.div
@@ -1701,23 +1527,11 @@ export default function OurStoryPage() {
               </p>
 
               <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                And I want you to know that I have a life I&apos;m working hard to build, too.
+                I want us to keep building our future together, supporting each other through busy days and quiet days alike.
               </p>
 
               <p>
-                Sometimes my work and business will keep me busy. I might not always be able to call or text when I want to.
-              </p>
-
-              <p className="font-medium text-[#732B3B]">
-                But I don&apos;t want you to feel forgotten when that happens.
-              </p>
-
-              <p>
-                I want to keep making time for you, even when life gets complicated.
-              </p>
-
-              <p>
-                I want us to talk honestly, understand each other, and be patient with each other when we need it.
+                I want us to talk honestly, understand each other, and be patient with each other as we grow side by side.
               </p>
 
               <p>
@@ -1741,7 +1555,7 @@ export default function OurStoryPage() {
               </p>
 
               <p>
-                I want you to feel them in the way I treat you, the time I make for you, the way I listen to you, and the way I keep choosing to show up.
+                I want you to feel them in the way I treat you, the time we make for each other, the way I listen to you, and the way we keep choosing to show up.
               </p>
 
               <p>
@@ -1753,7 +1567,7 @@ export default function OurStoryPage() {
               </p>
 
               <p>
-                I just want to keep getting to know you, keep making memories with you, and keep building something that makes both of us happy.
+                I just want to keep experiencing life with you, keep making memories together, and keep building a future that makes both of us happy.
               </p>
 
               <div className="space-y-1.5 p-4 rounded-xl bg-rose-50/70 border border-rose-200/70 font-serif italic text-sm sm:text-base text-[#692934]">
@@ -1762,24 +1576,17 @@ export default function OurStoryPage() {
                 <p>And thank you for being you.</p>
               </div>
 
-              <p>
-                Once, I hoped I&apos;d see you again.
-              </p>
-
-              <p className="font-serif text-lg sm:text-xl text-[#8C1D32] font-semibold">
-                Now, I get to call you my girlfriend.
-              </p>
-
-              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                And honestly, Lena?
-              </p>
-
-              <p className="font-serif text-xl sm:text-2xl text-[#8C1D32] font-bold">
-                I&apos;m really, really happy about that.
-              </p>
+              <div className="pt-2">
+                <p className="font-serif text-lg sm:text-xl text-[#8C1D32] font-semibold">
+                  From the boy who first saw you on Puttekatt… to the boy who gets to call you his girlfriend.
+                </p>
+                <p className="font-serif italic text-base sm:text-lg text-[#782336] mt-1">
+                  And honestly, Lena? I&apos;m really, really happy about that.
+                </p>
+              </div>
 
               {/* Signature */}
-              <div className="pt-8 text-right">
+              <div className="pt-6 text-right">
                 <p className="font-script-romantic text-3xl sm:text-4xl text-[#8C2337]">
                   Yours,
                 </p>
@@ -1792,67 +1599,8 @@ export default function OurStoryPage() {
         </section>
 
         {/* =========================================================================
-            SECTION 14 — FINAL CLOSING: ONE LAST THING
+            SECTION 13 — TIMELINE & MEMORABLE KEEPSAKES
             ========================================================================= */}
-        <section className="relative pt-24 sm:pt-36 text-center">
-          <motion.div {...animFadeUp} className="max-w-xl mx-auto space-y-10">
-            {/* Visual pause with generous whitespace */}
-            <div className="space-y-3">
-              <p className="font-serif text-lg sm:text-xl md:text-2xl italic text-[#732B3B]">
-                “From the boy who first saw you on Puttekatt…”
-              </p>
-            </div>
-
-            <div className="py-8 sm:py-12 flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <span className="w-12 sm:w-16 h-px bg-rose-300" />
-                <Heart className="w-5 h-5 text-rose-500 fill-rose-400" />
-                <span className="w-12 sm:w-16 h-px bg-rose-300" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <p className="font-serif text-xl sm:text-2xl md:text-3xl font-medium text-[#8C1D32]">
-                “…to the boy who gets to call you his girlfriend.”
-              </p>
-            </div>
-
-            <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-b from-white/90 via-rose-50/50 to-pink-50/40 border border-rose-200/90 shadow-md space-y-5 text-sm sm:text-base text-[#4A353A] leading-relaxed text-left">
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                I liked you first.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#732B3B]">
-                I made most of the first moves.
-              </p>
-              <p className="font-serif text-base sm:text-lg text-[#8C1D32] italic font-semibold">
-                But one of my favourite memories will always be the day you made the last one.
-              </p>
-              <p>
-                And if life gets busy, if we have quiet days, if we cannot talk as much as we want to, I hope we remember that we can always communicate, understand each other, and make time for what matters.
-              </p>
-              <p>
-                I&apos;m still the same boy who wants to know more about you.
-              </p>
-              <p className="font-serif italic text-base sm:text-lg text-[#782336]">
-                Only now, I get to know you for real.
-              </p>
-              <p className="font-serif text-lg sm:text-xl text-[#8C1D32] font-semibold pt-2 border-t border-rose-100 text-center">
-                And I&apos;m so happy it&apos;s you, Lena. ❤️
-              </p>
-              <div className="pt-4 text-center">
-                <p className="font-script-romantic text-3xl sm:text-4xl text-[#8C2337]">
-                  Your Sanoof.
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* =========================================================================
-            SECTION 15 — TIMELINE & MEMORABLE KEEPSAKES
-            ========================================================================= */}
-
-        {/* AN ONGOING JOURNAL OF US — TIMELINE */}
         <section className="relative pt-20 sm:pt-28">
           <motion.div
             {...animFadeUp}
@@ -1867,144 +1615,240 @@ export default function OurStoryPage() {
                 Look how far we&apos;ve come
               </h3>
               <p className="text-xs font-serif italic text-[#8C6D73]">
-                Memories we&apos;ve gathered, in the order they happened
+                Memories and keepsakes we&apos;ve gathered, in the order they happened
               </p>
             </div>
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               {JOURNAL_TIMELINE_ENTRIES.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-3.5 rounded-xl bg-rose-50/50 hover:bg-rose-50 transition-colors border border-rose-100/80 text-xs sm:text-sm gap-2"
+                  className="flex flex-col p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 hover:bg-rose-50/80 transition-colors border border-rose-100/90 text-xs sm:text-sm gap-3"
                 >
-                  <div className="flex items-start sm:items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
-                    <div>
-                      <span className="font-serif font-medium text-[#4A262E] block sm:inline">
-                        {item.title}
-                      </span>
-                      {item.storyText && (
-                        <p className="text-[11px] text-[#7A5B62] font-serif italic mt-0.5">
-                          {item.storyText}
-                        </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-start sm:items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
+                      <div>
+                        <span className="font-serif font-medium text-[#4A262E] block sm:inline">
+                          {item.title}
+                        </span>
+                        {item.storyText && (
+                          <p className="text-[11px] text-[#7A5B62] font-serif italic mt-0.5">
+                            {item.storyText}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      {item.tag && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100/80 text-[#7A2B3B] font-serif">
+                          {item.tag}
+                        </span>
                       )}
+                      <span className="text-[#875F66] font-mono text-[11px] sm:text-xs">
+                        {item.date}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                    {item.tag && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100/80 text-[#7A2B3B] font-serif">
-                        {item.tag}
+
+                  {/* PROMINENT TREASURED LETTER / QUOTE KEEPSAKE */}
+                  {item.quote && (
+                    <div className="my-1 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-white via-rose-50/80 to-pink-50/60 border border-rose-200/90 shadow-sm text-center space-y-2">
+                      <span className="text-[10px] uppercase tracking-widest text-rose-500 font-semibold block">
+                        {item.quoteLabel || "Treasure Keepsake"}
                       </span>
-                    )}
-                    <span className="text-[#875F66] font-mono text-[11px] sm:text-xs">
-                      {item.date}
-                    </span>
-                  </div>
+                      <p className="font-serif text-sm sm:text-base md:text-lg font-medium text-[#7A1C2E] leading-relaxed italic">
+                        “{item.quote}”
+                      </p>
+                    </div>
+                  )}
+
+                  {/* DEEP TENDER FIRST-PERSON NARRATIVE */}
+                  {item.narrative && item.narrative.length > 0 && (
+                    <div className="space-y-2.5 text-xs sm:text-sm text-[#4A353A] leading-relaxed bg-white/85 p-3.5 sm:p-4 rounded-xl border border-rose-100">
+                      {item.narrative.map((para, pIdx) => (
+                        <p key={pIdx}>{para}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MULTI-MEDIA GALLERY (E.G. BIRTHDAY ASSETS) */}
+                  {item.media && item.media.length > 0 && (
+                    <div className="pt-1 space-y-2">
+                      <div className="flex items-center justify-between text-xs text-[#7A3A46] font-serif">
+                        <span className="font-medium flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                          Birthday Keepsakes &amp; Videos ({item.media.length})
+                        </span>
+                        <span className="text-[11px] italic text-[#8C6D73]">
+                          Tap photo to enlarge · Videos playable with sound
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                        {item.media.map((m, mIdx) => (
+                          <div
+                            key={m.id || mIdx}
+                            className="flex flex-col bg-white rounded-xl overflow-hidden border border-rose-200/80 shadow-xs hover:shadow-md transition-all"
+                          >
+                            <div className="relative aspect-[9/16] w-full bg-neutral-950 overflow-hidden">
+                              {m.type === "image" ? (
+                                <div
+                                  onClick={() =>
+                                    setActivePhoto({
+                                      src: m.src,
+                                      alt: m.alt || m.caption || "Birthday keepsake",
+                                      caption: m.caption || "October 25, 2026 · Birthday Keepsake",
+                                      date: "October 25, 2026",
+                                      location: "Birthday Wish",
+                                    })
+                                  }
+                                  className="relative w-full h-full cursor-zoom-in group"
+                                >
+                                  <Image
+                                    src={m.src}
+                                    alt={m.alt || "Birthday keepsake"}
+                                    fill
+                                    sizes="(max-width: 640px) 45vw, 200px"
+                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                  <div className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Maximize2 className="w-3 h-3" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <video
+                                  controls
+                                  playsInline
+                                  preload="metadata"
+                                  className="w-full h-full object-cover"
+                                >
+                                  <source src={m.src} type="video/mp4" />
+                                  <source src={m.src} type="video/quicktime" />
+                                  Your browser does not support this video.
+                                </video>
+                              )}
+                            </div>
+                            {m.caption && (
+                              <div className="p-2 text-center bg-rose-50/40 border-t border-rose-100">
+                                <p className="text-[10px] font-serif text-[#692934] truncate">
+                                  {m.caption}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* REAL PHOTOGRAPH PREVIEW (E.G. OCTOBER 29 CAR DATE) */}
+                  {item.photo && !item.media && (
+                    <div className="pt-2 pb-1 flex justify-center">
+                      <figure
+                        onClick={() =>
+                          setActivePhoto({
+                            src: item.photo!,
+                            alt: `${item.title} - ${item.date}`,
+                            caption:
+                              item.photoCaption ||
+                              `${item.date} · ${item.title}`,
+                            date: item.date,
+                            location: item.photoLocation || "Our Memory",
+                          })
+                        }
+                        className="group relative max-w-sm sm:max-w-md w-full bg-white p-3 sm:p-4 rounded-2xl shadow-lg shadow-rose-950/8 border border-rose-200/90 hover:shadow-xl transition-all duration-300 hover:scale-[1.01] cursor-zoom-in"
+                      >
+                        {item.photoBadge && (
+                          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-rose-100/95 border border-rose-200/80 rounded-full shadow-xs z-10 text-[10px] font-serif text-[#8C1D32] flex items-center justify-center font-medium">
+                            {item.photoBadge}
+                          </div>
+                        )}
+
+                        <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-neutral-950 mt-1">
+                          <picture className="relative block w-full h-full">
+                            <source srcSet={item.photo} type="image/webp" />
+                            {item.fallbackPhoto && (
+                              <source srcSet={item.fallbackPhoto} type="image/jpeg" />
+                            )}
+                            <Image
+                              src={item.photo}
+                              alt={item.title}
+                              fill
+                              sizes="(max-width: 640px) 90vw, 420px"
+                              className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                            />
+                          </picture>
+                          <div className="absolute bottom-2.5 right-2.5 p-1.5 rounded-full bg-black/60 text-white backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+
+                        <figcaption className="mt-3 text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-serif text-[#6B172A]">
+                            <span className="px-2.5 py-0.5 rounded-full bg-rose-100/80 border border-rose-200/60 font-medium">
+                              {item.date}
+                            </span>
+                            {item.id === "car-date-oct-29" ? (
+                              <>
+                                <span className="px-2.5 py-0.5 rounded-full bg-rose-100/80 border border-rose-200/60 font-medium">
+                                  11:00 AM Beach walk
+                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full bg-rose-100/80 border border-rose-200/60 font-medium">
+                                  Shoulder hug &amp; first kiss
+                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full bg-rose-100/80 border border-rose-200/60 font-medium">
+                                  Playful bites
+                                </span>
+                              </>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full bg-rose-100/80 border border-rose-200/60 font-medium">
+                                {item.tag || "Our Memory"}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#8C6D73] font-serif italic mt-1.5">
+                            Tap photograph to view full size
+                          </p>
+                        </figcaption>
+                      </figure>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </motion.div>
         </section>
 
-        {/* THINGS I'LL ALWAYS ASSOCIATE WITH OUR STORY */}
-        <section className="relative pt-16 sm:pt-20">
-          <motion.div
-            {...animFadeUp}
-            className="max-w-2xl mx-auto p-6 sm:p-8 rounded-3xl bg-white/90 border border-rose-200/80 shadow-md space-y-6"
-          >
-            <div className="text-center space-y-1">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100/70 text-xs font-serif text-[#7A2B3B] font-medium">
-                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                Keepsakes & Memories
-              </span>
-              <h3 className="font-serif text-2xl sm:text-3xl font-medium text-[#3D1D24]">
-                Things I&apos;ll always associate with our story
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs sm:text-sm">
-              {[
-                { term: "Puttekatt", desc: "where I first saw you." },
-                { term: "“Perilla”", desc: "the name I never got at the gate." },
-                {
-                  term: "Instagram",
-                  desc: "where we slowly found our way back into each other's lives.",
-                },
-                {
-                  term: "“Hi”",
-                  desc: "the message that started our everyday conversations.",
-                },
-                {
-                  term: "Roadside whispers",
-                  desc: "our first quiet real-life exchange in October.",
-                },
-                { term: "Chemmad", desc: "where our first car date began and ended." },
-                { term: "A tiny unicorn", desc: "the Kinder Joy gift you gave me." },
-                { term: "51 minutes", desc: "our first proper call together." },
-                { term: "“Yes, obviously”", desc: "my answer to your question." },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 sm:p-3.5 rounded-xl bg-gradient-to-br from-rose-50/40 to-white border border-rose-100/90 shadow-2xs space-y-1"
-                >
-                  <p className="font-serif font-semibold text-[#732B3B]">
-                    {item.term}
-                  </p>
-                  <p className="text-[#694F54] text-xs leading-relaxed">
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </section>
-
-
+        {/* CONCLUDING KEEPSAKE & ONGOING STORY NOTE */}
         <section className="relative pt-16 sm:pt-20 text-center">
           <motion.div
             {...animFadeUp}
-            className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-rose-100/60 via-pink-100/50 to-rose-100/60 border border-rose-200 shadow-sm space-y-3"
+            className="max-w-xl mx-auto p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-rose-100/60 via-pink-100/50 to-rose-100/60 border border-rose-200 shadow-sm space-y-4"
           >
-            <p className="font-serif text-lg sm:text-xl font-semibold text-[#8C2337]">
-              One little thing about you
-            </p>
+            <div className="flex items-center justify-center gap-3">
+              <span className="w-12 h-px bg-rose-300" />
+              <Heart className="w-4 h-4 text-rose-500 fill-rose-300/50" />
+              <span className="w-12 h-px bg-rose-300" />
+            </div>
+
+            <h3 className="font-serif text-xl sm:text-2xl font-semibold text-[#8C2337]">
+              Our story is still being written ♡
+            </h3>
 
             <p className="font-serif italic text-base sm:text-lg text-[#52333A] leading-relaxed">
-              You once told me you didn&apos;t have a name.
+              You once told me you didn&apos;t have a name. And now, Lena Fathima K, your name has become part of one of our favourite stories.
             </p>
 
-            <p className="font-serif italic text-base sm:text-lg text-[#8C1D32] font-semibold leading-relaxed">
-              And now, Lena Fathima K, your name has become part of one of my favourite stories. ❤️
+            <p className="text-xs sm:text-sm font-serif italic text-[#7A454E] leading-relaxed">
+              There are still so many little moments waiting to become memories as we walk toward our future together.
             </p>
-          </motion.div>
-        </section>
 
-
-        {/* JOURNAL CONTINUATION CLOSING NOTE */}
-        <section className="relative pt-12 pb-4 text-center">
-          <motion.div {...animFadeUp} className="max-w-xl mx-auto space-y-3">
-            <div className="flex items-center justify-center gap-3">
-              <span className="w-12 h-px bg-rose-200" />
-              <Heart className="w-4 h-4 text-rose-400 fill-rose-300/40" />
-              <span className="w-12 h-px bg-rose-200" />
+            <div className="pt-2 border-t border-rose-200/60 text-xs text-[#87656C] font-serif italic">
+              Our story began in December 2023. We found our way to each other in October 2026. And we&apos;re still writing it together.
             </div>
-            <p className="font-serif italic text-lg sm:text-xl text-[#732B3B] font-medium leading-relaxed">
-              “Our story is still being written.”
-            </p>
-            <p className="text-xs sm:text-sm font-serif italic text-[#8C6D73]">
-              There are still so many little moments waiting to become memories.
-            </p>
-            <p className="text-[11px] font-sans text-rose-500/80 tracking-widest uppercase font-medium">
-              An ongoing journal · With you ♡
-            </p>
           </motion.div>
         </section>
-
-        {/* Footer Summary */}
-        <div className="pt-8 text-center text-xs text-[#87656C] font-serif italic">
-          Our story began in December 2023. We found our way to each other in
-          October 2026. And we&apos;re still writing it together.
-        </div>
       </div>
 
       {/* =========================================================================
